@@ -35,7 +35,15 @@ audio after a tap.
 plain `http://` is not enough: browsers only hand out the microphone on a secure
 origin. `localhost` counts as secure, so listening works on this computer with no
 setup at all, but `http://192.168.1.20:8787` on the tablet never even gets a
-permission prompt. Serve it over https instead, from an elevated PowerShell window:
+permission prompt.
+
+The easy answer is the hosted copy at
+**<https://jackypig.github.io/sight-reading/>** — it is https, so the tablet can use
+the microphone there, the computer does not have to be switched on, and
+**Add to Home Screen** works on it just the same.
+
+To do it from this computer instead — offline, or to try changes before they are
+pushed — serve it over https from an elevated PowerShell window:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\serve.ps1 -Https -AllowLan
