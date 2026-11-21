@@ -164,8 +164,8 @@ app prints what the current level means under the level buttons.
 | Famous tunes available | 4 | 7 | 9 | 11 | 11 |
 
 Rests and accidentals are off by default — switch them on under **More settings**,
-along with key, time signature (4/4, 3/4, 2/4), bar count, metronome behaviour and
-volume. Clarinet keys are written keys, the ones that actually turn up in band music
+along with key, time signature (4/4, 3/4, 2/4), bar count (2, 4 or 8 — 8 is the
+default, two lines of four), metronome behaviour and volume. Clarinet keys are written keys, the ones that actually turn up in band music
 for a B♭ instrument.
 
 Tempo has a slider from 40 to 160 plus four preset buttons. Slow is the point: at

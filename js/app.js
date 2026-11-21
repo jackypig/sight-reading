@@ -21,7 +21,8 @@
     level: 2,
     key: 'auto',
     timeSig: '4/4',
-    bars: 4,
+    bars: 8,
+    barsChosen: false,
     tempo: 80,
     click: 'all',
     rests: false,
@@ -133,6 +134,9 @@
     if (saved) Object.keys(settings).forEach(function (k) {
       if (saved[k] !== undefined && saved[k] !== null) settings[k] = saved[k];
     });
+    // Older saves recorded 4 bars without anyone choosing it; move them to the
+    // new default of 8 unless a bar count was actually picked.
+    if (!settings.barsChosen) settings.bars = 8;
     setSegment($('segInstrument'), settings.instrument);
     setSegment($('segClef'), settings.clef);
     setSegment($('segLevel'), settings.level);
@@ -966,6 +970,8 @@
     });
     onSegment($('segBars'), function (v) {
       settings.bars = parseInt(v, 10);
+      settings.barsChosen = true;
+      persist();
       newExercise();
     });
     onSegment($('segSource'), function (v) {

@@ -189,7 +189,7 @@
     var restChance = settings.rests ? (level <= 2 ? 0.08 : level === 3 ? 0.12 : 0.16) : 0;
     var effLevel = settings.accidentals ? level : Math.min(level, 3);
 
-    var bars = settings.bars || 4;
+    var bars = settings.bars || 8;
     var voices = [];
 
     if (instrument === 'piano' && clef === 'grand') {
