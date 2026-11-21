@@ -2,11 +2,14 @@
 
 A sight-reading trainer for clarinet and piano. It makes up short pieces of music,
 counts you in, clicks a metronome while you play, and then plays the music back so
-you can check yourself. There is also a "Name It" drill for reading notes quickly,
-and a progress page that remembers how practice is going.
+you can check yourself. Switch on listening and it goes further: it hears what you
+play through the microphone and marks each note green or red as it goes by. There is
+also a "Name It" drill for reading notes quickly, and a progress page that remembers
+how practice is going.
 
 Plain HTML, CSS and JavaScript — no build step, no install, no account, no network
-calls. Everything it saves stays in the browser on that device.
+calls. Everything it saves stays in the browser on that device, and what the
+microphone hears is analysed and thrown away, never recorded or sent anywhere.
 
 ![The reading screen, with a famous tune just revealed as Old MacDonald Had a Farm](docs/screenshot.jpg)
 
@@ -28,6 +31,30 @@ On an iPad, Safari's **Share → Add to Home Screen** gives it an icon and a ful
 screen. Tap something on the page once before expecting sound — browsers only allow
 audio after a tap.
 
+**If you want the tablet to listen** (see [Listening while he plays](#listening-while-he-plays)),
+plain `http://` is not enough: browsers only hand out the microphone on a secure
+origin. `localhost` counts as secure, so listening works on this computer with no
+setup at all, but `http://192.168.1.20:8787` on the tablet never even gets a
+permission prompt. Serve it over https instead, from an elevated PowerShell window:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\serve.ps1 -Https -AllowLan
+```
+
+That makes a self-signed certificate the first time (three years, reused after
+that), binds it to the port, and prints an `https://192.168.1.20:8787` address. The
+tablet will warn about the certificate once — Safari: **Show Details → visit this
+website**; Chrome: **Advanced → Proceed** — and after that the page counts as secure
+and can ask for the microphone. The script also drops a `sight-reader-dev.cer` next
+to itself: installing and trusting that on the tablet stops the warning for good,
+but it is entirely optional.
+
+To undo the port binding later: `netsh http delete sslcert ipport=0.0.0.0:8787`.
+
+If none of that appeals, the simple answer is to do the listening practice on the
+computer and leave the tablet for everything else — the rest of the app works the
+same over plain http.
+
 ## The three screens
 
 ### Read
@@ -36,6 +63,8 @@ Generates a few bars of music and shows them in real notation.
 
 - **Count in & play along** — one bar of clicks, then the metronome keeps time while
   he plays. A blue highlight slides along so he can see where the beat is.
+- **Listen while I play** — optional: the app hears what he plays and marks every
+  note. See below.
 - **Hear it** — plays the same music back (clarinet or piano sound) to check against.
 - **New music** — a fresh exercise.
 - After a play-along it asks how it went; either answer brings up the next exercise.
@@ -43,6 +72,36 @@ Generates a few bars of music and shows them in real notation.
 Clarinet exercises are **written pitch**: the key shown is the written key and the
 playback sounds a major 2nd lower, exactly like the instrument. Piano can be treble,
 bass, or grand staff with a left-hand part.
+
+#### Listening while he plays
+
+Switch on **Listen while I play** (or press `L`) and the app uses the microphone to
+follow along. Each note turns **green** when he played it, **red** when something
+else came out — with the note it heard — and **dashed grey** when it heard nothing
+there at all. At the end it says how many were right, which ones came out as
+something else, and which were never heard.
+
+Press **Check my microphone** first if you want to be sure it can hear him: it shows
+the note he is playing live, with how far sharp or flat it is in cents. On clarinet
+the reading is the **written** note he is fingering, matching the music on screen,
+not the concert pitch coming out of the instrument — internally everything is
+compared at concert pitch, since the clarinet sounds a major 2nd below what it reads.
+
+Worth knowing:
+
+- Listening is **off by default** and the toggle is remembered. With it off, nothing
+  about the play-along changes and the microphone is never touched.
+- The microphone is only on during a run or a check, and is released afterwards.
+  Nothing is recorded, stored or sent anywhere: the audio is analysed and thrown away.
+- It follows **one note at a time**. On the grand staff it judges the right hand
+  only, and chords or two hands at once will confuse it.
+- A note has to last long enough to be heard — roughly a tenth of a second — so very
+  fast sixteenths at a quick tempo are judged on one or two readings.
+- Metronome clicks and key clicks are ignored: the detector only looks at the range
+  of notes the exercise actually contains, and rejects anything that is better
+  explained by a sound above that range. Speakers are fine; headphones are tidier.
+- If permission is refused, there is no microphone, or something else is using it,
+  the play-along runs exactly as it always did and the card says why.
 
 #### Made up, or a famous tune
 
@@ -111,6 +170,7 @@ Tempo has a slider from 40 to 160 plus four preset buttons. Slow is the point: a
 | `Space` | Count in and play along (starts a round in Name It) |
 | `H` | Hear the exercise |
 | `N` | New exercise |
+| `L` | Listen while I play, on or off |
 | `R` | Reveal which famous tune this is |
 | `1`–`5` | Level |
 | `A`–`G` | Answer in Name It |
@@ -126,10 +186,22 @@ js/generator.js   makes the exercises (rhythm first, then the melody)
 js/tunes.js       the famous-tune library, and transposing one to fit
 js/notation.js    draws with VexFlow, reports note positions for the highlight
 js/audio.js       Web Audio metronome, synth and transport
+js/pitch.js       microphone capture and pitch detection (NSDF / McLeod)
 js/storage.js     progress and settings in localStorage
 vendor/vexflow.js VexFlow 4.2.2, vendored so the app works offline
-serve.ps1         small static server for reaching the app from a tablet
+serve.ps1         small static server, with -Https for microphone use on a tablet
+tests/pitch-tests.html  detector checks against synthesised tones, no mic needed
 ```
+
+Pitch detection is the normalised square difference function behind McLeod's MPM:
+autocorrelation scaled into −1..1 so peaks at different lags can be compared, the
+shortest convincing peak taken as the period, and longer periods then tried in case
+one explains the waveform better. That last step is what a clarinet needs — its 3rd
+harmonic, the twelfth it overblows, is loud enough that plain autocorrelation
+happily reports a note a twelfth too high. Opening `tests/pitch-tests.html` runs the
+detector over synthesised clarinet-like and piano-like tones (including
+weak-fundamental ones), detuned notes, noise, silence and metronome clicks, and
+prints a pass/fail table — no microphone and no build step involved.
 
 Exercises are built rhythm-first: each bar is filled with beat-aligned groups
 (eighths in pairs, dotted quarter plus eighth, and so on) so nothing unreadable comes
@@ -141,10 +213,12 @@ device, and **Clear all progress** on the Progress screen wipes it.
 
 ## Possible next steps
 
-- **Listening through the microphone** — pitch detection so the app can tell whether
-  what he played matched, instead of him judging it himself. Deliberately left out of
-  this version: it is the biggest piece of work here and worth doing on its own.
 - A clarinet fingering chart in the drill, so a wrong answer shows the fingering.
+- Counting listening results into **Progress**, so "notes to work on" draws on what
+  he actually played and not only on the naming drill.
+- Following two hands at once, so the grand staff can be judged properly.
+- Timing as well as pitch: the app knows when each note was heard, so it could say
+  what was rushed or late.
 - Minor keys, 6/8, key signatures beyond the current set.
 - Two-hand independence exercises for piano, and separate left/right-hand drilling.
 - Exporting a week's practice as a summary for a teacher.

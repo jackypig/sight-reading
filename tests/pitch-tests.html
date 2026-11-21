@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pitch detection tests — Sight Reader</title>
+<style>
+  body { font: 15px/1.5 system-ui, "Segoe UI", sans-serif; margin: 0; padding: 18px; background: #f3f5fb; color: #1a2340; }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  p.lede { color: #5e6886; margin: 0 0 16px; max-width: 70ch; }
+  h2 { font-size: 1.05rem; margin: 22px 0 6px; }
+  table { border-collapse: collapse; background: #fff; width: 100%; max-width: 980px; box-shadow: 0 1px 6px rgba(20,30,60,.08); }
+  th, td { text-align: left; padding: 5px 9px; border-bottom: 1px solid #e3e7f2; font-variant-numeric: tabular-nums; }
+  th { background: #eaeffb; font-size: .85rem; text-transform: uppercase; letter-spacing: .03em; }
+  td.v { text-align: right; }
+  tr.pass td:first-child::before { content: "\2713 "; color: #16864a; font-weight: 700; }
+  tr.fail { background: #fdeaec; }
+  tr.fail td:first-child::before { content: "\2717 "; color: #c22f3d; font-weight: 700; }
+  .verdict { font-size: 1.1rem; font-weight: 700; padding: 10px 14px; border-radius: 10px; margin: 14px 0; display: inline-block; }
+  .verdict.ok { background: #dcf5e6; color: #0f6d3c; }
+  .verdict.bad { background: #fde7e9; color: #a3202c; }
+  code { background: #eaeffb; padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<h1>Pitch detection tests</h1>
+<p class="lede">Runs <code>SR.pitch.detect()</code> over synthesised buffers: clarinet-like tones
+(odd harmonics, including the weak-fundamental case that fools plain autocorrelation into
+reporting the twelfth above), piano-like tones with inharmonic partials and decay, detuned
+notes, noisy rooms, silence and clicks. No microphone needed.</p>
+
+<div id="verdict"></div>
+<div id="out"></div>
+
+<script src="../js/pitch.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var RATE = 44100;
+  var LEN = 4096;
+  var P = SR.pitch;
+
+  function midiToFreq(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+
+  function make(len) { return new Float32Array(len || LEN); }
+
+  function normalise(buf, peak) {
+    var max = 0, i;
+    for (i = 0; i < buf.length; i++) max = Math.max(max, Math.abs(buf[i]));
+    if (!max) return buf;
+    var g = (peak === undefined ? 0.3 : peak) / max;
+    for (i = 0; i < buf.length; i++) buf[i] *= g;
+    return buf;
+  }
+
+  /* ---------- synthetic instruments ---------- */
+
+  // Odd harmonics, like a clarinet. `fundamental` scales the 1st partial so the
+  // hard case (a nearly missing fundamental with a loud 3rd) can be built.
+  function clarinet(freq, opts) {
+    opts = opts || {};
+    var buf = make(opts.len);
+    var amps = [opts.fundamental === undefined ? 1 : opts.fundamental, 0.08, 0.85, 0.05, 0.42, 0.03, 0.2, 0.02, 0.1];
+    var vib = opts.vibrato || 0;
+    var phase = opts.phase || 0.37;
+    for (var i = 0; i < buf.length; i++) {
+      var t = i / RATE;
+      var f = freq * (1 + vib * Math.sin(2 * Math.PI * 5.2 * t));
+      var s = 0;
+      for (var h = 0; h < amps.length; h++) {
+        if (!amps[h]) continue;
+        s += amps[h] * Math.sin(2 * Math.PI * f * (h + 1) * t + phase * h);
+      }
+      // A little breath noise, as a real reed has.
+      s += (opts.breath === undefined ? 0.02 : opts.breath) * (Math.random() * 2 - 1);
+      buf[i] = s;
+    }
+    return normalise(buf, opts.peak);
+  }
+
+  // Inharmonic partials and a decaying envelope, like a struck string.
+  function piano(freq, opts) {
+    opts = opts || {};
+    var buf = make(opts.len);
+    var B = opts.inharmonicity === undefined ? 0.0004 : opts.inharmonicity;
+    var amps = [opts.fundamental === undefined ? 1 : opts.fundamental, 0.6, 0.35, 0.22, 0.14, 0.09, 0.06];
+    var decay = opts.decay === undefined ? 1.6 : opts.decay;
+    for (var i = 0; i < buf.length; i++) {
+      var t = i / RATE;
+      var env = Math.exp(-decay * t);
+      var s = 0;
+      for (var h = 0; h < amps.length; h++) {
+        if (!amps[h]) continue;
+        var n = h + 1;
+        var fn = freq * n * Math.sqrt(1 + B * n * n);
+        s += amps[h] * Math.exp(-decay * 0.35 * h * t) * Math.sin(2 * Math.PI * fn * t + h * 0.9);
+      }
+      buf[i] = s * env;
+    }
+    return normalise(buf, opts.peak);
+  }
+
+  function sine(freq, opts) {
+    opts = opts || {};
+    var buf = make(opts.len);
+    for (var i = 0; i < buf.length; i++) buf[i] = Math.sin(2 * Math.PI * freq * i / RATE);
+    return normalise(buf, opts.peak);
+  }
+
+  function noise(level) {
+    var buf = make();
+    for (var i = 0; i < buf.length; i++) buf[i] = (Math.random() * 2 - 1) * (level === undefined ? 0.25 : level);
+    return buf;
+  }
+
+  function silence() { return make(); }
+
+  // A metronome click: a short high burst, the thing most likely to be heard
+  // during a play-along.
+  function click() {
+    var buf = make();
+    for (var i = 0; i < buf.length; i++) {
+      var t = i / RATE;
+      buf[i] = i < RATE * 0.05 ? Math.sin(2 * Math.PI * 1760 * t) * Math.exp(-70 * t) * 0.6 : 0;
+    }
+    return buf;
+  }
+
+  function mix(a, b) {
+    var buf = make();
+    for (var i = 0; i < buf.length; i++) buf[i] = (a[i] || 0) + (b[i] || 0);
+    return buf;
+  }
+
+  /* ---------- test table ---------- */
+
+  var WIDE = { fmin: 62, fmax: 1400 };                 // nothing known about the player
+  var CLAR = { fmin: 130, fmax: 1000 };                // clarinet concert range, as the app passes it
+  var PIANO = { fmin: 62, fmax: 1400 };
+
+  var rows = [];
+  var fails = 0;
+
+  function run(name, buf, expectMidi, opts, note, expectCents) {
+    var res = P.detect(buf, RATE, opts || WIDE);
+    var ok;
+    if (expectMidi === null) ok = !res.voiced;
+    else ok = res.voiced && res.midi === expectMidi &&
+      Math.abs(res.cents - (expectCents || 0)) <= 25;
+    if (!ok) fails++;
+    rows.push({
+      name: name,
+      ok: ok,
+      heard: res.voiced ? res.name + (res.cents >= 0 ? ' +' : ' ') + res.cents + '¢' : '—',
+      want: expectMidi === null ? 'nothing' : P.noteLabel(expectMidi),
+      freq: res.voiced ? res.frequency.toFixed(1) : '',
+      clarity: res.clarity.toFixed(2),
+      conf: res.confidence.toFixed(2),
+      note: note || ''
+    });
+    return res;
+  }
+
+  var C = { // concert pitches used below
+    D3: 50, G3: 55, C4: 60, A4: 69, Bb4: 70, E5: 76, Bb5: 82,
+    C2: 36, E2: 40, C3: 48, C5: 72, C6: 84
+  };
+
+  /* clarinet-like */
+  run('Clarinet D3 (bottom of level 3, concert)', clarinet(midiToFreq(C.D3)), C.D3, CLAR);
+  run('Clarinet G3', clarinet(midiToFreq(C.G3)), C.G3, CLAR);
+  run('Clarinet Bb4 (written C5)', clarinet(midiToFreq(C.Bb4)), C.Bb4, CLAR);
+  run('Clarinet E5', clarinet(midiToFreq(C.E5)), C.E5, CLAR);
+  run('Clarinet Bb5 (top of range)', clarinet(midiToFreq(C.Bb5)), C.Bb5, CLAR);
+  run('Clarinet C4, weak fundamental (0.25) — the twelfth trap',
+    clarinet(midiToFreq(C.C4), { fundamental: 0.25 }), C.C4, CLAR, '3rd harmonic louder than f0');
+  run('Clarinet D3, almost no fundamental (0.12)',
+    clarinet(midiToFreq(C.D3), { fundamental: 0.12 }), C.D3, CLAR, 'hardest clarinet case');
+  run('Clarinet A4 with vibrato', clarinet(midiToFreq(C.A4), { vibrato: 0.004 }), C.A4, CLAR);
+  run('Clarinet A4, wide search range', clarinet(midiToFreq(C.A4)), C.A4, WIDE);
+  run('Clarinet C4 weak fundamental, wide search range',
+    clarinet(midiToFreq(C.C4), { fundamental: 0.25 }), C.C4, WIDE);
+
+  /* piano-like */
+  run('Piano C4', piano(midiToFreq(C.C4)), C.C4, PIANO);
+  run('Piano C3', piano(midiToFreq(C.C3)), C.C3, PIANO);
+  run('Piano E2 (level 3 left hand)', piano(midiToFreq(C.E2)), C.E2, PIANO);
+  run('Piano C2 (lowest the app writes)', piano(midiToFreq(C.C2)), C.C2, PIANO);
+  run('Piano C5', piano(midiToFreq(C.C5)), C.C5, PIANO);
+  run('Piano C6 (top of level 3)', piano(midiToFreq(C.C6)), C.C6, PIANO);
+  run('Piano C4, weak fundamental (0.3)', piano(midiToFreq(C.C4), { fundamental: 0.3 }), C.C4, PIANO);
+  run('Piano C4, late in the decay', piano(midiToFreq(C.C4), { decay: 5 }), C.C4, PIANO);
+  run('Piano C3, strong inharmonicity', piano(midiToFreq(C.C3), { inharmonicity: 0.0012 }), C.C3, PIANO);
+
+  /* intonation */
+  var sharp = run('A4 sharp by 30 cents (reads as A4, +30¢)',
+    clarinet(440 * Math.pow(2, 30 / 1200)), C.A4, CLAR, '', 30);
+  var flat = run('A4 flat by 35 cents', clarinet(440 * Math.pow(2, -35 / 1200)), C.A4, CLAR, '', -35);
+  rows.push({
+    name: 'Cents reading is signed and roughly right',
+    ok: sharp.cents > 18 && sharp.cents < 42 && flat.cents < -22 && flat.cents > -48,
+    heard: sharp.cents + '¢ / ' + flat.cents + '¢', want: '+30 / -35', freq: '', clarity: '', conf: '',
+    note: 'within a few cents'
+  });
+  if (!rows[rows.length - 1].ok) fails++;
+
+  /* awkward rooms and silence */
+  run('Silence', silence(), null, WIDE, 'must report nothing');
+  run('Room noise only', noise(0.3), null, WIDE, 'must report nothing');
+  run('Metronome click only', click(), null, CLAR,
+    'a click is nearly all above the search range, and must not read as its subharmonic');
+  run('Metronome click, with the range widened for octave slips (fmax 1150)',
+    click(), null, { fmin: 130, fmax: 1150 }, 'the app’s real ceiling sits under the click');
+  run('Clarinet A4 with the range widened for octave slips',
+    clarinet(midiToFreq(C.A4)), C.A4, { fmin: 130, fmax: 1150 });
+  run('Clarinet A4 played an octave up, heard as A5',
+    clarinet(midiToFreq(C.A4 + 12)), C.A4 + 12, { fmin: 130, fmax: 1150 },
+    'so the app can say "an octave up"');
+  run('Key click / chair scrape (high-passed noise)', (function () {
+    var n = noise(0.4), buf = make();
+    for (var i = 1; i < buf.length; i++) buf[i] = n[i] - n[i - 1];  // crude high pass
+    return buf;
+  })(), null, CLAR);
+  run('Clarinet A4 in a noisy room (noise at 0.06)',
+    mix(clarinet(midiToFreq(C.A4), { peak: 0.3 }), noise(0.06)), C.A4, CLAR);
+  run('Clarinet A4 under a metronome click', mix(clarinet(midiToFreq(C.A4), { peak: 0.3 }), click()), C.A4, CLAR);
+  run('Very quiet playing (peak 0.012)', clarinet(midiToFreq(C.A4), { peak: 0.012 }), C.A4, CLAR, 'still audible');
+  run('Barely-there signal (peak 0.003)', clarinet(midiToFreq(C.A4), { peak: 0.003 }), null, CLAR, 'below the gate');
+  run('Pure sine A4', sine(440), C.A4, CLAR);
+  run('Short buffer (1024 samples), clarinet A4',
+    clarinet(midiToFreq(C.A4), { len: 1024 }), C.A4, CLAR);
+
+  /* ---------- sweeps ---------- */
+
+  function sweep(label, lo, hi, build, opts) {
+    var total = 0, good = 0, octave = 0, worst = [];
+    for (var m = lo; m <= hi; m++) {
+      for (var cents = -20; cents <= 20; cents += 20) {
+        var f = midiToFreq(m) * Math.pow(2, cents / 1200);
+        var res = P.detect(build(f), RATE, opts);
+        total++;
+        if (res.voiced && res.midi === m) good++;
+        else {
+          if (res.voiced && Math.abs(res.midi - m) % 12 === 0) octave++;
+          if (worst.length < 6) worst.push(P.noteLabel(m) + '→' + (res.voiced ? res.name : 'nothing'));
+        }
+      }
+    }
+    var ok = good === total;
+    if (!ok) fails++;
+    rows.push({
+      name: label, ok: ok, heard: good + '/' + total, want: 'all',
+      freq: '', clarity: '', conf: '',
+      note: ok ? 'every note, at -20/0/+20 cents' :
+        (octave ? octave + ' octave errors. ' : '') + worst.join(', ')
+    });
+  }
+
+  sweep('Sweep: clarinet concert D3–Bb5', C.D3, C.Bb5, function (f) { return clarinet(f); }, CLAR);
+  sweep('Sweep: clarinet, weak fundamental (0.25)', C.D3, C.Bb5,
+    function (f) { return clarinet(f, { fundamental: 0.25 }); }, CLAR);
+  sweep('Sweep: piano C2–C6', C.C2, C.C6, function (f) { return piano(f); }, PIANO);
+  sweep('Sweep: piano, weak fundamental (0.35)', C.C2, C.C6,
+    function (f) { return piano(f, { fundamental: 0.35 }); }, PIANO);
+
+  /* ---------- timing ---------- */
+
+  var t0 = performance.now();
+  var frames = 60;
+  var buf = clarinet(midiToFreq(C.A4));
+  for (var i = 0; i < frames; i++) P.detect(buf, RATE, PIANO);
+  var per = (performance.now() - t0) / frames;
+  rows.push({
+    name: 'One frame costs under 12 ms (widest search range)',
+    ok: per < 12, heard: per.toFixed(2) + ' ms', want: '< 12 ms', freq: '', clarity: '', conf: '',
+    note: 'the app analyses ~18 frames a second'
+  });
+  if (per >= 12) fails++;
+
+  /* ---------- render ---------- */
+
+  var html = '<table><tr><th>Test</th><th>Heard</th><th>Expected</th><th class="v">Hz</th>' +
+    '<th class="v">clarity</th><th class="v">conf</th><th>Notes</th></tr>';
+  rows.forEach(function (r) {
+    html += '<tr class="' + (r.ok ? 'pass' : 'fail') + '"><td>' + r.name + '</td><td>' + r.heard +
+      '</td><td>' + r.want + '</td><td class="v">' + r.freq + '</td><td class="v">' + r.clarity +
+      '</td><td class="v">' + r.conf + '</td><td>' + r.note + '</td></tr>';
+  });
+  html += '</table>';
+  document.getElementById('out').innerHTML = html;
+  document.getElementById('verdict').innerHTML = '<div class="verdict ' + (fails ? 'bad' : 'ok') + '">' +
+    (fails ? fails + ' of ' + rows.length + ' checks failed' : 'All ' + rows.length + ' checks passed') + '</div>';
+
+  // So the whole run can be read back from the console or a test driver.
+  window.PITCH_TEST = { fails: fails, total: rows.length, rows: rows, msPerFrame: per };
+  console.log('pitch tests: ' + (rows.length - fails) + '/' + rows.length + ' passed, ' +
+    per.toFixed(2) + ' ms per frame');
+})();
+</script>
+</body>
+</html>

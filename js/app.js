@@ -373,9 +373,13 @@
     targets: []
   };
 
-  // Only ever search the notes this exercise can contain (plus a few semitones
-  // for wrong notes next door). It keeps metronome clicks and room rumble out,
-  // and it makes the detector cheaper.
+  // Only ever search around the notes this exercise contains. An octave either
+  // side, so the usual slips — the clarinet's register key, the wrong octave on
+  // the piano — get named rather than vanishing, but no higher than 1150 Hz:
+  // the metronome clicks at 1200 and 1760 Hz and must stay out of the search.
+  var LISTEN_HZ_CEILING = 1150;
+  var LISTEN_HZ_FLOOR = 60;
+
   function listenRange() {
     var lo = Infinity, hi = -Infinity;
     if (practice.ex) practice.ex.voices.forEach(function (voice) {
@@ -388,8 +392,11 @@
         });
       });
     });
-    if (!isFinite(lo)) return { fmin: pitch.DEFAULTS.fmin, fmax: pitch.DEFAULTS.fmax };
-    return { fmin: pitch.freqFromMidi(lo - 4), fmax: pitch.freqFromMidi(hi + 4) };
+    if (!isFinite(lo)) return { fmin: pitch.DEFAULTS.fmin, fmax: LISTEN_HZ_CEILING };
+    return {
+      fmin: Math.max(LISTEN_HZ_FLOOR, pitch.freqFromMidi(lo - 12)),
+      fmax: Math.min(LISTEN_HZ_CEILING, pitch.freqFromMidi(hi + 12))
+    };
   }
 
   function setListenStatus(msg, cls) {
@@ -426,11 +433,16 @@
 
   function paintReadout(res) {
     if ($('micReadout').hidden) return;
+    // Name it the way the music on screen names it: on clarinet that is the
+    // written note he is fingering, not the concert pitch coming out of the bell.
+    var transpose = practice.ex ? (practice.ex.transpose || 0)
+      : (T.INSTRUMENTS[settings.instrument].transpose || 0);
+    var midi = res.voiced ? (res.steadyMidi !== null ? res.steadyMidi : res.midi) : null;
     var noteEl = $('micNote');
-    noteEl.textContent = res.voiced ? (res.steadyMidi !== null ? res.steadyName : res.name) : '—';
+    noteEl.textContent = midi === null ? '—' : heardName(midi - transpose);
     noteEl.classList.toggle('dim', !res.voiced);
     $('micCents').textContent = res.voiced
-      ? (res.cents > 0 ? '+' : '') + res.cents + ' cents'
+      ? (transpose ? 'written · ' : '') + (res.cents > 0 ? '+' : '') + res.cents + ' cents'
       : (res.rms > 0.012 ? 'not a clear note' : 'quiet');
     var needle = $('micNeedle');
     var cents = res.voiced ? Math.max(-50, Math.min(50, res.cents)) : 0;
@@ -442,14 +454,27 @@
 
   function onPitchFrame(res) {
     paintReadout(res);
-    if (listen.mode !== 'judge' || listen.beat < 0) return;
+    if (listen.mode !== 'judge') return;
     if (!res.voiced || res.confidence < 0.35) return;
+
+    // Ask the audio clock where the beat is, rather than using the last value
+    // onTick left behind: requestAnimationFrame is throttled when the page is
+    // not in front, and a stale beat files notes against the wrong ones. Then
+    // step back by the detector's own lag, since a frame describes sound that
+    // happened a moment ago.
+    var beat = listen.beat;
+    if (practice.transport && practice.transport.beatNow) {
+      var spb = 60 / settings.tempo;
+      beat = practice.transport.beatNow() - pitch.lagSeconds() / spb;
+    }
+    if (beat < 0) return;
+
     for (var i = 0; i < listen.targets.length; i++) {
       var t = listen.targets[i];
       // Skip the first slice of each note: that is where the click and the tail
       // of the note before it live.
       var lead = Math.min(0.3, t.beats * 0.25);
-      if (listen.beat >= t.startBeat + lead && listen.beat < t.endBeat) {
+      if (beat >= t.startBeat + lead && beat < t.endBeat) {
         t.frames++;
         if (res.midi === t.midi) t.matched++;
         else t.heard[res.midi] = (t.heard[res.midi] || 0) + 1;

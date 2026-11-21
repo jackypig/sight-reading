@@ -180,6 +180,11 @@
         if (raf) global.cancelAnimationFrame(raf);
         stopAll();
       },
+      // The beat right now, straight off the audio clock. onTick only fires as
+      // often as requestAnimationFrame does, which the browser throttles when
+      // the page is not in front, so anything that has to know where the beat
+      // is — the microphone, for one — should ask here instead.
+      beatNow: function () { return (ctx.currentTime - t0) / spb; },
       isRunning: function () { return !stopped; },
       durationSec: (countBeats + totalBeats) * spb
     };
@@ -214,6 +219,8 @@
     startTransport: startTransport,
     startMetronome: startMetronome,
     now: function () { return ctx ? ctx.currentTime : 0; },
+    // The microphone shares this context so the app only ever has one.
+    context: function () { return ensure(); },
     available: function () { return !!(global.AudioContext || global.webkitAudioContext); }
   };
 })(window);

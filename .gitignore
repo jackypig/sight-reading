@@ -2,3 +2,9 @@
 # VexFlow is vendored on purpose so the app works offline.
 .DS_Store
 Thumbs.db
+
+# Self-signed certificate made by serve.ps1 -Https
+sight-reader-dev.cer
+
+# Local dev-server config for the Claude Code browser pane (machine-specific paths)
+.claude/launch.json
