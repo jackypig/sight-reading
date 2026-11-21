@@ -99,8 +99,8 @@
         idx = Math.max(0, Math.min(notes.length - 1, next));
       }
       var note = notes[idx];
-      // Occasional chromatic colour at the hardest level.
-      if (level >= 3 && n > 0 && n < count - 1 && chance(0.07)) {
+      // Occasional chromatic colour at the hardest levels.
+      if (level >= 4 && n > 0 && n < count - 1 && chance(0.07)) {
         var alt = T.chromaticNeighbour(note, chance(0.5) ? 1 : -1);
         if (alt && alt.midi >= notes[0].midi && alt.midi <= notes[notes.length - 1].midi) note = alt;
       }
@@ -184,10 +184,10 @@
     var timeSig = { num: parseInt(tsParts[0], 10), den: parseInt(tsParts[1], 10) };
     var beatsPerBar = timeSig.num * (4 / timeSig.den);
 
-    var allowed = T.RHYTHM_LEVELS[level].slice();
+    var allowed = (T.RHYTHM_LEVELS[level] || T.RHYTHM_LEVELS[1]).slice();
     if (settings.sixteenths === false) allowed = allowed.filter(function (d) { return d !== 's'; });
-    var restChance = settings.rests ? (level === 1 ? 0.08 : level === 2 ? 0.12 : 0.16) : 0;
-    var effLevel = settings.accidentals ? level : Math.min(level, 2);
+    var restChance = settings.rests ? (level <= 2 ? 0.08 : level === 3 ? 0.12 : 0.16) : 0;
+    var effLevel = settings.accidentals ? level : Math.min(level, 3);
 
     var bars = settings.bars || 4;
     var voices = [];
@@ -221,6 +221,7 @@
       timeSig: timeSig,
       beatsPerBar: beatsPerBar,
       bars: bars,
+      totalBeats: bars * beatsPerBar,
       voices: voices,
       transpose: T.INSTRUMENTS[instrument].transpose,
       timbre: T.INSTRUMENTS[instrument].timbre

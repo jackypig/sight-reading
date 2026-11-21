@@ -39,11 +39,22 @@
       </div>
       <div class="field">
         <label>Level</label>
-        <div class="segmented" id="segLevel">
-          <button data-val="1">1 · Warm&#8209;up</button>
-          <button data-val="2" class="is-on">2 · Steady</button>
-          <button data-val="3">3 · Challenge</button>
+        <div class="segmented levels" id="segLevel">
+          <button data-val="1">1</button>
+          <button data-val="2" class="is-on">2</button>
+          <button data-val="3">3</button>
+          <button data-val="4">4</button>
+          <button data-val="5">5</button>
         </div>
+        <p class="hint level-note" id="levelNote"></p>
+      </div>
+      <div class="field">
+        <label>Music</label>
+        <div class="segmented" id="segSource">
+          <button data-val="random" class="is-on">Made up</button>
+          <button data-val="tune">Famous tune</button>
+        </div>
+        <p class="hint level-note" id="sourceNote"></p>
       </div>
     </div>
 
@@ -101,12 +112,16 @@
           <span class="pill" id="pillTime">4/4</span>
           <span class="pill" id="pillTempo">80 bpm</span>
           <span class="pill ghost" id="pillCount"></span>
+          <span class="pill tune" id="pillTune" hidden></span>
+          <button class="chip reveal" id="btnReveal" hidden>What is this tune?</button>
         </div>
         <div class="notation-wrap">
           <div id="notation" class="notation"></div>
+          <div id="hitMarks" class="hitmarks" aria-hidden="true"></div>
           <div id="cursor" class="cursor" hidden></div>
         </div>
         <p class="hint" id="instrumentNote"></p>
+        <p class="hint tune-note" id="tuneNote" hidden></p>
       </div>
 
       <div class="card tempo-card">
@@ -125,6 +140,32 @@
         <button class="btn" id="btnHear"><span class="ic">&#128266;</span> Hear it</button>
         <button class="btn" id="btnNew"><span class="ic">&#8635;</span> New music</button>
       </div>
+
+      <div class="card listen" id="listenCard">
+        <label class="check listen-head">
+          <input type="checkbox" id="chkListen">
+          <span>Listen while I play
+            <small>the app hears each note and marks it green or red</small></span>
+        </label>
+        <div class="listen-body" id="listenBody" hidden>
+          <div class="actions tight">
+            <button class="btn" id="btnMicCheck"><span class="ic">&#127908;</span> Check my microphone</button>
+          </div>
+          <div class="mic-readout" id="micReadout" hidden>
+            <div class="mic-heard">
+              <strong id="micNote">&#8212;</strong>
+              <small id="micCents"></small>
+            </div>
+            <div class="mic-bars">
+              <div class="mic-cents"><i class="mid"></i><i class="needle" id="micNeedle"></i></div>
+              <div class="mic-level"><i id="micLevel"></i></div>
+            </div>
+          </div>
+          <p class="hint" id="listenStatus"></p>
+        </div>
+      </div>
+
+      <div class="card listen-result" id="listenResult" hidden></div>
 
       <div class="card selfcheck" id="selfCheck" hidden>
         <p>How did that one go?</p>
@@ -198,7 +239,7 @@
   </main>
 
   <footer class="foot">
-    <span class="hint">Shortcuts: <kbd>Space</kbd> play along · <kbd>H</kbd> hear it · <kbd>N</kbd> new · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> level · in Name It, letter keys answer.</span>
+    <span class="hint">Shortcuts: <kbd>Space</kbd> play along · <kbd>H</kbd> hear it · <kbd>N</kbd> new · <kbd>L</kbd> listen · <kbd>R</kbd> reveal the tune · <kbd>1</kbd>–<kbd>5</kbd> level · in Name It, letter keys answer.</span>
   </footer>
 </div>
 
@@ -207,8 +248,10 @@
 <script src="vendor/vexflow.js"></script>
 <script src="js/theory.js"></script>
 <script src="js/generator.js"></script>
+<script src="js/tunes.js"></script>
 <script src="js/notation.js"></script>
 <script src="js/audio.js"></script>
+<script src="js/pitch.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/app.js"></script>
 </body>

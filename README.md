@@ -44,6 +44,33 @@ Clarinet exercises are **written pitch**: the key shown is the written key and t
 playback sounds a major 2nd lower, exactly like the instrument. Piano can be treble,
 bass, or grand staff with a left-hand part.
 
+#### Made up, or a famous tune
+
+The **Music** switch decides where the notes come from. *Made up* is fresh random
+music every time. *Famous tune* pulls a real melody out of the library — and does
+not say which one. The pill reads **Mystery tune** until he presses *What is this
+tune?* (or `R`), so the fun is playing it, hearing it come out as something he
+knows, and only then finding out he was right.
+
+Tunes carry their own key, time signature and length, so those settings are
+ignored while a tune is on screen. Each one is transposed into the right key for
+the instrument — a tune in concert C becomes D major on the clarinet — and shifted
+by octaves to sit on the staff. A tune only appears once its level is reached:
+
+| Level | New tunes at this level |
+|---|---|
+| 1 | Ode to Joy · Twinkle, Twinkle · Mary Had a Little Lamb · Jingle Bells |
+| 2 | Old MacDonald · Yankee Doodle · Ode to Joy (full theme) |
+| 3 | Frère Jacques · Three Blind Mice |
+| 4 | Happy Birthday · Beethoven's Fifth |
+
+**Why these and not Star Wars.** Everything in the library is public domain —
+traditional songs and classical themes old enough to be out of copyright. Current
+pop and film music is still in copyright, so its notation cannot be reproduced
+here. Adding more is one line of data in `js/tunes.js`; the format is documented at
+the top of that file, and every bar is checked for the right number of beats when
+the page loads, so a typo shows up immediately.
+
 ### Name It
 
 Shows one note at a time for twenty questions. Answer by tapping a letter (with the
@@ -57,12 +84,17 @@ accuracy, which notes are being missed most, and accuracy by key signature.
 
 ## Levels
 
-| | Level 1 · Warm-up | Level 2 · Steady | Level 3 · Challenge |
-|---|---|---|---|
-| Clarinet range (written) | C4–G5 | G3–C6 | E3–C6 |
-| Piano (grand staff) | C4–C5 / C3–C4 | C4–C6 / E2–D4 | C4–C6 / C2–F4 |
-| Keys | C, F | C, G, F, D | C, G, D, F, B♭, A |
-| Rhythms | whole, half, quarter | + dotted half, eighths | + dotted quarter, sixteenths |
+Five steps rather than three, so a month of practice has somewhere to go. The
+app prints what the current level means under the level buttons.
+
+| | 1 · Start | 2 · Easy | 3 · Steady | 4 · Push | 5 · Challenge |
+|---|---|---|---|---|---|
+| Clarinet range (written) | C4–G5 | A3–A5 | G3–C6 | F3–C6 | E3–C6 |
+| Piano, treble | C4–C5 | A3–E5 | G3–G5 | F3–C6 | E3–E6 |
+| Piano, bass | C3–C4 | A2–E4 | F2–G4 | E2–A4 | C2–C5 |
+| Keys | C, F | C, G, F | C, G, D, F | + B♭ | + A (or E♭ on piano) |
+| Rhythms | whole, half, quarter | + dotted half | + eighths | + dotted quarter | + sixteenths |
+| Famous tunes available | 4 | 7 | 9 | 11 | 11 |
 
 Rests and accidentals are off by default — switch them on under **More settings**,
 along with key, time signature (4/4, 3/4, 2/4), bar count, metronome behaviour and
@@ -79,7 +111,8 @@ Tempo has a slider from 40 to 160 plus four preset buttons. Slow is the point: a
 | `Space` | Count in and play along (starts a round in Name It) |
 | `H` | Hear the exercise |
 | `N` | New exercise |
-| `1` `2` `3` | Level |
+| `R` | Reveal which famous tune this is |
+| `1`–`5` | Level |
 | `A`–`G` | Answer in Name It |
 | `#` / `b` / `n` | Sharp / flat / natural for the next answer |
 
@@ -90,6 +123,7 @@ index.html        markup for the three screens
 css/styles.css    tablet-first styling, light and dark
 js/theory.js      notes, keys, instrument ranges, transposition
 js/generator.js   makes the exercises (rhythm first, then the melody)
+js/tunes.js       the famous-tune library, and transposing one to fit
 js/notation.js    draws with VexFlow, reports note positions for the highlight
 js/audio.js       Web Audio metronome, synth and transport
 js/storage.js     progress and settings in localStorage

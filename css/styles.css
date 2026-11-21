@@ -503,3 +503,111 @@ kbd {
 @media (max-width: 860px) and (orientation: portrait) {
   .field { flex-basis: 100%; }
 }
+
+/* ---------- listening through the microphone ---------- */
+
+.hitmarks { position: absolute; inset: 0; pointer-events: none; }
+
+.hitmark {
+  position: absolute;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  transition: background-color .12s linear;
+}
+
+.hitmark.ok   { background: rgba(22, 134, 74, .17);  border-color: rgba(22, 134, 74, .4); }
+.hitmark.bad  { background: rgba(194, 47, 61, .16);  border-color: rgba(194, 47, 61, .45); }
+.hitmark.miss { background: rgba(120, 128, 150, .12); border-color: rgba(120, 128, 150, .4); border-style: dashed; }
+
+@media (prefers-color-scheme: dark) {
+  .hitmark.ok   { background: rgba(95, 213, 152, .2);  border-color: rgba(95, 213, 152, .5); }
+  .hitmark.bad  { background: rgba(255, 143, 155, .18); border-color: rgba(255, 143, 155, .5); }
+  .hitmark.miss { background: rgba(163, 173, 199, .14); border-color: rgba(163, 173, 199, .45); }
+}
+
+.listen-head { align-items: flex-start; font-weight: 700; }
+.listen-head small { display: block; font-weight: 400; color: var(--muted); }
+.listen-body { margin-top: 12px; }
+.listen-body .actions { margin-bottom: 10px; }
+.listen-body .btn { flex: 0 1 280px; }
+
+.mic-readout {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.mic-heard { min-width: 92px; text-align: center; }
+.mic-heard strong { display: block; font-size: 2rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.mic-heard strong.dim { color: var(--muted); }
+.mic-heard small { color: var(--muted); font-variant-numeric: tabular-nums; }
+.mic-bars { flex: 1 1 auto; display: grid; gap: 8px; }
+
+.mic-cents, .mic-level {
+  position: relative;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.mic-cents .mid {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--muted);
+  opacity: .55;
+}
+
+.mic-cents .needle {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  width: 10px;
+  margin-left: -5px;
+  left: 50%;
+  border-radius: 999px;
+  background: var(--good);
+  transition: left .08s linear;
+}
+
+.mic-cents .needle.off { background: var(--warn); }
+.mic-cents .needle.quiet { background: var(--muted); opacity: .5; }
+.mic-level i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--accent); border-radius: 999px; }
+
+.listen-result .big-score { font-size: 2rem; font-weight: 800; }
+.listen-result p { margin: 4px 0; }
+.listen-result .tally { display: flex; gap: 14px; flex-wrap: wrap; margin: 6px 0 2px; font-weight: 700; }
+.listen-result .tally .ok { color: var(--good); }
+.listen-result .tally .bad { color: var(--bad); }
+.listen-result .tally .miss { color: var(--muted); }
+.hint.bad { color: var(--bad); }
+
+/* ---------- five levels and famous-tune mode ---------- */
+
+.segmented.levels button { font-size: 1.1rem; padding: 0 4px; }
+
+.hint.level-note { margin: 6px 2px 0; font-size: .82rem; line-height: 1.3; }
+
+.pill.tune { background: var(--warn-soft); color: var(--warn); }
+
+.chip.reveal {
+  min-height: 38px;
+  padding: 0 14px;
+  border-color: var(--warn);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-weight: 700;
+}
+
+.hint.tune-note { color: var(--ink); font-weight: 600; }
+
+.segmented button:disabled,
+select:disabled { opacity: .45; cursor: default; }
