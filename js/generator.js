@@ -145,9 +145,11 @@
         var r = rhythms[b][j];
         var isLast = (b === rhythms.length - 1) && (j === rhythms[b].length - 1);
         var isFirst = (b === 0 && j === 0);
-        // At most one rest per bar, so the music still sounds like a melody.
+        // At most one rest per bar, so the music still sounds like a melody,
+        // and only on plain values — a dotted rest reads oddly at this level.
         var rest = !isFirst && !isLast && restsThisBar === 0 &&
-          r.beats >= 0.5 && chance(opts.restChance || 0);
+          T.DUR[r.durKey].dots === 0 && r.beats >= 0.5 && r.beats <= 2 &&
+          chance(opts.restChance || 0);
         if (rest) restsThisBar++;
         items.push({
           note: rest ? null : melody[k],
