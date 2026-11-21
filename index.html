@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1b2a4a">
+<title>Sight Reader — clarinet &amp; piano practice</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>&#119070;</text></svg>">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand"><span class="logo">&#9834;</span> Sight Reader</div>
+    <nav class="tabs" id="tabs" role="tablist">
+      <button class="tab is-on" data-view="practice" role="tab">Read</button>
+      <button class="tab" data-view="drill" role="tab">Name It</button>
+      <button class="tab" data-view="progress" role="tab">Progress</button>
+    </nav>
+  </header>
+
+  <section class="setup card">
+    <div class="fields">
+      <div class="field">
+        <label>Instrument</label>
+        <div class="segmented" id="segInstrument">
+          <button data-val="clarinet" class="is-on">Clarinet</button>
+          <button data-val="piano">Piano</button>
+        </div>
+      </div>
+      <div class="field" id="fieldStaff" hidden>
+        <label>Staff</label>
+        <div class="segmented" id="segClef">
+          <button data-val="treble" class="is-on">Treble</button>
+          <button data-val="bass">Bass</button>
+          <button data-val="grand">Grand</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Level</label>
+        <div class="segmented" id="segLevel">
+          <button data-val="1">1 · Warm&#8209;up</button>
+          <button data-val="2" class="is-on">2 · Steady</button>
+          <button data-val="3">3 · Challenge</button>
+        </div>
+      </div>
+    </div>
+
+    <details id="more">
+      <summary>More settings</summary>
+      <div class="fields">
+        <div class="field">
+          <label for="selKey">Key</label>
+          <select id="selKey">
+            <option value="auto">Mixed (level keys)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="selTime">Time</label>
+          <select id="selTime">
+            <option value="4/4">4/4</option>
+            <option value="3/4">3/4</option>
+            <option value="2/4">2/4</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Bars</label>
+          <div class="segmented" id="segBars">
+            <button data-val="2">2</button>
+            <button data-val="4" class="is-on">4</button>
+            <button data-val="8">8</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="selClick">Click</label>
+          <select id="selClick">
+            <option value="all">All the way through</option>
+            <option value="countin">Count-in only</option>
+            <option value="off">No click</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="rngVol">Volume</label>
+          <input type="range" id="rngVol" min="0" max="100" value="70">
+        </div>
+        <div class="field checks">
+          <label class="check"><input type="checkbox" id="chkRests"> Rests</label>
+          <label class="check"><input type="checkbox" id="chkAcc"> Accidentals</label>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <main>
+    <!-- ============ READ ============ -->
+    <section class="view" id="view-practice">
+      <div class="card score">
+        <div class="score-head">
+          <span class="pill" id="pillKey">C major</span>
+          <span class="pill" id="pillTime">4/4</span>
+          <span class="pill" id="pillTempo">80 bpm</span>
+          <span class="pill ghost" id="pillCount"></span>
+        </div>
+        <div class="notation-wrap">
+          <div id="notation" class="notation"></div>
+          <div id="cursor" class="cursor" hidden></div>
+        </div>
+        <p class="hint" id="instrumentNote"></p>
+      </div>
+
+      <div class="card tempo-card">
+        <label for="rngTempo">Tempo <strong id="tempoOut">80</strong> bpm</label>
+        <input type="range" id="rngTempo" min="40" max="160" step="2" value="80">
+        <div class="tempo-presets">
+          <button class="chip" data-tempo="54">Slow 54</button>
+          <button class="chip" data-tempo="72">72</button>
+          <button class="chip" data-tempo="88">88</button>
+          <button class="chip" data-tempo="104">104</button>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" id="btnPlayAlong"><span class="ic">&#9654;</span> Count in &amp; play along</button>
+        <button class="btn" id="btnHear"><span class="ic">&#128266;</span> Hear it</button>
+        <button class="btn" id="btnNew"><span class="ic">&#8635;</span> New music</button>
+      </div>
+
+      <div class="card selfcheck" id="selfCheck" hidden>
+        <p>How did that one go?</p>
+        <div class="actions tight">
+          <button class="btn good" id="btnGood">&#10003; Nailed it</button>
+          <button class="btn warn" id="btnAgain">&#8635; Needs work</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ NAME IT ============ -->
+    <section class="view" id="view-drill" hidden>
+      <div class="drill-stats">
+        <div class="stat"><strong id="drillScore">0/0</strong><small>score</small></div>
+        <div class="stat"><strong id="drillStreak">0</strong><small>streak</small></div>
+        <div class="stat"><strong id="drillTimer">0.0s</strong><small>this note</small></div>
+        <div class="stat"><strong id="drillLeft">20</strong><small>to go</small></div>
+      </div>
+
+      <div class="card drill-card">
+        <div id="drillNotation" class="notation single"></div>
+        <div class="feedback" id="drillFeedback">Press <em>Start round</em> to begin.</div>
+      </div>
+
+      <div class="field centered">
+        <div class="segmented" id="segAnswerMode">
+          <button data-val="name" class="is-on">Name it</button>
+          <button data-val="keys">Find it on the keys</button>
+        </div>
+      </div>
+
+      <div id="namePad" class="pad">
+        <div class="acc-row segmented" id="segAcc">
+          <button data-val="b">&#9837; flat</button>
+          <button data-val="" class="is-on">&#9838; natural</button>
+          <button data-val="#">&#9839; sharp</button>
+        </div>
+        <div class="note-row" id="noteRow"></div>
+      </div>
+
+      <div id="keyPad" class="piano-wrap" hidden><div class="piano" id="piano"></div></div>
+
+      <div class="actions">
+        <button class="btn primary" id="btnDrillStart">Start round</button>
+        <button class="btn" id="btnDrillSkip" disabled>Skip note</button>
+      </div>
+
+      <div class="card summary" id="roundSummary" hidden></div>
+    </section>
+
+    <!-- ============ PROGRESS ============ -->
+    <section class="view" id="view-progress" hidden>
+      <div class="tiles" id="progressTiles"></div>
+      <div class="card">
+        <h2>Last 7 days</h2>
+        <div class="week" id="weekChart"></div>
+      </div>
+      <div class="card">
+        <h2>Notes to work on</h2>
+        <div class="bars" id="weakBars"></div>
+      </div>
+      <div class="card">
+        <h2>By key signature</h2>
+        <div class="bars" id="keyBars"></div>
+      </div>
+      <div class="card danger-zone">
+        <button class="btn warn" id="btnReset">Clear all progress</button>
+        <span class="hint" id="storeNote"></span>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span class="hint">Shortcuts: <kbd>Space</kbd> play along · <kbd>H</kbd> hear it · <kbd>N</kbd> new · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> level · in Name It, letter keys answer.</span>
+  </footer>
+</div>
+
+<div id="boot" class="boot" hidden></div>
+
+<script src="vendor/vexflow.js"></script>
+<script src="js/theory.js"></script>
+<script src="js/generator.js"></script>
+<script src="js/notation.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

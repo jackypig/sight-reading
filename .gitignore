@@ -1,0 +1,4 @@
+# Nothing to ignore yet — the app has no build step and no dependencies to install.
+# VexFlow is vendored on purpose so the app works offline.
+.DS_Store
+Thumbs.db
