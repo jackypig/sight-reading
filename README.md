@@ -8,7 +8,7 @@ and a progress page that remembers how practice is going.
 Plain HTML, CSS and JavaScript — no build step, no install, no account, no network
 calls. Everything it saves stays in the browser on that device.
 
-![The reading screen: four bars in F major for clarinet](docs/screenshot.jpg)
+![The reading screen, with a famous tune just revealed as Old MacDonald Had a Farm](docs/screenshot.jpg)
 
 ## Running it
 
