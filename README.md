@@ -1,6 +1,6 @@
 # Sight Reader
 
-A sight-reading trainer for clarinet and piano. It makes up short pieces of music,
+A sight-reading trainer for clarinet, viola and piano. It makes up short pieces of music,
 counts you in, clicks a metronome while you play, and then plays the music back so
 you can check yourself. Switch on listening and it goes further: it hears what you
 play through the microphone and marks each note green or red as it goes by. There is
@@ -77,9 +77,17 @@ Generates a few bars of music and shows them in real notation.
 - **New music** — a fresh exercise.
 - After a play-along it asks how it went; either answer brings up the next exercise.
 
-Clarinet exercises are **written pitch**: the key shown is the written key and the
-playback sounds a major 2nd lower, exactly like the instrument. Piano can be treble,
-bass, or grand staff with a left-hand part.
+Each instrument reads in its own clef and at its own pitch. **Clarinet** exercises
+are **written pitch**: the key shown is the written key and the playback sounds a
+major 2nd lower, exactly like the instrument. **Viola** reads **alto clef** — the
+middle line is middle C — and sounds exactly as written, with keys and a range built
+around the open strings C3, G3, D4 and A4. **Piano** can be treble, bass, or grand
+staff with a left-hand part. Each one also has its own voice in the playback, so the
+viola is bowed rather than blown.
+
+Because two children use this, **each instrument remembers its own level**: switching
+from clarinet to viola brings back the level that instrument was last read at. Progress
+(streak, minutes, accuracy) is still one shared pot per device — see the last section.
 
 #### Listening while he plays
 
@@ -157,9 +165,11 @@ app prints what the current level means under the level buttons.
 | | 1 · Start | 2 · Easy | 3 · Steady | 4 · Push | 5 · Challenge |
 |---|---|---|---|---|---|
 | Clarinet range (written) | C4–G5 | A3–A5 | G3–C6 | F3–C6 | E3–C6 |
+| Viola range (alto clef) | C4–A4 | G3–A4 | G3–D5 | C3–D5 | C3–A5 |
 | Piano, treble | C4–C5 | A3–E5 | G3–G5 | F3–C6 | E3–E6 |
 | Piano, bass | C3–C4 | A2–E4 | F2–G4 | E2–A4 | C2–C5 |
 | Keys | C, F | C, G, F | C, G, D, F | + B♭ | + A (or E♭ on piano) |
+| Keys, viola | C, G | C, G, D | C, G, D, F | + A | + B♭ |
 | Rhythms | whole, half, quarter | + dotted half | + eighths | + dotted quarter | + sixteenths |
 | Famous tunes available | 4 | 7 | 9 | 11 | 11 |
 
@@ -219,8 +229,16 @@ bouncing off the ends of the range, always landing on the tonic.
 Progress lives under the `sightReading.v1` key in localStorage. It never leaves the
 device, and **Clear all progress** on the Progress screen wipes it.
 
+**One pot per device.** There is a single set of progress figures, so two children
+practising on the same tablet share one streak, one minute count and one accuracy
+table. The level is remembered per instrument, which keeps the exercises right for
+each of them, but the statistics are pooled. Separate profiles are the fix, and are
+listed below as a next step.
+
 ## Possible next steps
 
+- **Separate profiles per player**, so two children on one tablet each keep their own
+  streak, practice minutes and accuracy instead of sharing a single pot.
 - A clarinet fingering chart in the drill, so a wrong answer shows the fingering.
 - Counting listening results into **Progress**, so "notes to work on" draws on what
   he actually played and not only on the naming drill.

@@ -30,7 +30,10 @@
     volume: 70,
     answerMode: 'name',
     listen: false,
-    source: 'random'
+    source: 'random',
+    // Two children at different stages share this app, so each instrument
+    // remembers the level it was last read at.
+    levelByInstrument: { clarinet: 2, viola: 2, piano: 2 }
   };
 
   // Which famous tune is on screen, and whether he has been told yet.
@@ -88,17 +91,24 @@
     T.keysFor(settings.instrument, settings.level).forEach(function (k) {
       var o = document.createElement('option');
       o.value = k;
-      o.textContent = T.KEYS[k].label + (settings.instrument === 'clarinet' ? ' (written)' : '');
+      o.textContent = T.KEYS[k].label + (transposes() ? ' (written)' : '');
       sel.appendChild(o);
     });
     sel.value = Array.prototype.some.call(sel.options, function (o) { return o.value === current; }) ? current : 'auto';
     settings.key = sel.value;
   }
 
+  // True for an instrument whose notation is not the pitch that comes out,
+  // which is the clarinet here — the viola and piano read at concert pitch.
+  function transposes() {
+    return T.INSTRUMENTS[settings.instrument].transpose !== 0;
+  }
+
   function syncInstrumentUI() {
-    $('fieldStaff').hidden = settings.instrument !== 'piano';
-    if (settings.instrument === 'clarinet') settings.clef = 'treble';
     var inst = T.INSTRUMENTS[settings.instrument];
+    $('fieldStaff').hidden = inst.clefs.length < 2;
+    // Each instrument reads its own clef: treble, alto, or the piano's choice.
+    if (inst.clefs.indexOf(settings.clef) === -1) settings.clef = inst.clefs[0];
     var range = settings.instrument === 'piano' && settings.clef === 'bass'
       ? T.bassRangeFor('piano', settings.level)
       : T.rangeFor(settings.instrument, settings.level, settings.clef);
@@ -106,8 +116,10 @@
       T.midiToName(range.low) + '–' + T.midiToName(range.high) + '.';
     // "Find it on the keys" judges written pitch, which is still useful on clarinet.
     var keysBtn = $('segAnswerMode').querySelector('[data-val="keys"]');
-    keysBtn.textContent = settings.instrument === 'clarinet' ? 'Find it (written)' : 'Find it on the keys';
+    keysBtn.textContent = transposes() ? 'Find it (written)' : 'Find it on the keys';
     $('levelNote').textContent = T.describeLevel(settings.instrument, settings.level, settings.clef);
+    if (!settings.levelByInstrument) settings.levelByInstrument = {};
+    settings.levelByInstrument[settings.instrument] = settings.level;
     syncSourceUI();
     persist();
   }
@@ -162,7 +174,7 @@
   function updatePills() {
     var ex = practice.ex;
     if (!ex) return;
-    $('pillKey').textContent = ex.keyLabel + (settings.instrument === 'clarinet' ? ' (written)' : '');
+    $('pillKey').textContent = ex.keyLabel + (transposes() ? ' (written)' : '');
     $('pillTime').textContent = ex.timeSig.num + '/' + ex.timeSig.den;
     $('pillTempo').textContent = settings.tempo + ' bpm';
     syncMysteryUI();
@@ -820,7 +832,7 @@
       store.recordStreak(drill.streak);
       setFeedback('✓ ' + q.note.name + '  ·  ' + (ms / 1000).toFixed(1) + 's', 'ok');
       if (keyEl) keyEl.classList.add('ok');
-      audio.playNote(q.note.midi + (settings.instrument === 'clarinet' ? T.INSTRUMENTS.clarinet.transpose : 0),
+      audio.playNote(q.note.midi + T.INSTRUMENTS[settings.instrument].transpose,
         audio.now() + 0.01, 0.6, T.INSTRUMENTS[settings.instrument].timbre);
     } else {
       drill.streak = 0;
@@ -952,7 +964,14 @@
     });
 
     onSegment($('segInstrument'), function (v) {
+      if (!settings.levelByInstrument) settings.levelByInstrument = {};
+      settings.levelByInstrument[settings.instrument] = settings.level;
       settings.instrument = v;
+      var remembered = settings.levelByInstrument[v];
+      if (remembered) {
+        settings.level = remembered;
+        setSegment($('segLevel'), settings.level);
+      }
       fillKeySelect();
       syncInstrumentUI();
       newExercise();

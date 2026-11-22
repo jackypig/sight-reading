@@ -108,7 +108,32 @@
         4: ['f/3', 'c/6'],
         5: ['e/3', 'c/6']
       },
+      // Written pitch is a major 2nd above concert: one letter step, two semitones.
+      writtenShift: { letters: 1, semitones: 2 },
       note: 'Written pitch — your clarinet sounds a major 2nd lower.'
+    },
+    viola: {
+      label: 'Viola',
+      clefs: ['alto'],
+      transpose: 0,
+      timbre: 'viola',
+      // Strings favour sharp keys; B♭ and E♭ turn up far less than in a band book.
+      keysByLevel: {
+        1: ['C', 'G'],
+        2: ['C', 'G', 'D'],
+        3: ['C', 'G', 'D', 'F'],
+        4: ['C', 'G', 'D', 'A', 'F'],
+        5: ['C', 'G', 'D', 'A', 'F', 'Bb']
+      },
+      // Open strings are C3, G3, D4 and A4; first position tops out near D5.
+      rangeByLevel: {
+        1: ['c/4', 'a/4'],
+        2: ['g/3', 'a/4'],
+        3: ['g/3', 'd/5'],
+        4: ['c/3', 'd/5'],
+        5: ['c/3', 'a/5']
+      },
+      note: 'Alto clef — the middle line is middle C. Sounds exactly as written.'
     },
     piano: {
       label: 'Piano',

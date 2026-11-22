@@ -215,20 +215,25 @@
     var parsed = parseMusic(tune.music);
     var measures = parsed.measures;
     var instrument = settings.instrument;
-    var isClarinet = instrument === 'clarinet';
+    var inst = T.INSTRUMENTS[instrument];
 
-    // Tunes are a single melody line, so the grand staff falls back to treble.
-    var clef = (instrument === 'piano' && settings.clef === 'bass') ? 'bass' : 'treble';
+    // Tunes are a single melody line, so the grand staff falls back to treble,
+    // and an instrument that reads alto clef gets them in alto clef.
+    var clef = inst.clefs.indexOf('alto') !== -1 ? 'alto'
+      : (instrument === 'piano' && settings.clef === 'bass') ? 'bass' : 'treble';
     var keyName = tune.key;
 
-    if (isClarinet) {
-      mapNotes(measures, function (n) { return transposeNote(n, 1, 2); });
+    // A transposing instrument reads a different key from the one that sounds.
+    if (inst.writtenShift) {
+      mapNotes(measures, function (n) {
+        return transposeNote(n, inst.writtenShift.letters, inst.writtenShift.semitones);
+      });
       keyName = transposeKeyUpMajorSecond(tune.key);
     }
 
     var range = (instrument === 'piano' && clef === 'bass')
       ? T.bassRangeFor('piano', settings.level)
-      : T.rangeFor(instrument, settings.level, clef === 'bass' ? 'bass' : 'treble');
+      : T.rangeFor(instrument, settings.level, clef);
     octaveShift(measures, range);
 
     var parts = tune.time.split('/');

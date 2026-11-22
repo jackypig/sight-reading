@@ -15,7 +15,12 @@
     return VF;
   }
 
-  function restKeyFor(clef) { return clef === 'bass' ? 'd/3' : 'b/4'; }
+  // A rest sits on the middle line, which is a different pitch in each clef.
+  function restKeyFor(clef) {
+    if (clef === 'bass') return 'd/3';
+    if (clef === 'alto') return 'c/4';
+    return 'b/4';
+  }
 
   function buildStaveNotes(measureItems, clef) {
     var F = flow();

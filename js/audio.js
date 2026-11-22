@@ -87,6 +87,37 @@
       osc.stop(time + hold + 0.12);
       breath.stop(time + hold + 0.12);
       track([osc, breath, out]);
+    } else if (timbre === 'viola') {
+      // Bowed string: a bright sawtooth rounded off by a low-pass, with the
+      // slower attack and the vibrato that make it read as a bow, not a reed.
+      var bow = ctx.createOscillator();
+      bow.type = 'sawtooth';
+      bow.frequency.value = freq;
+      var body2 = ctx.createBiquadFilter();
+      body2.type = 'lowpass';
+      body2.frequency.value = Math.min(3600, freq * 5 + 400);
+      body2.Q.value = 1.1;
+
+      var vib = ctx.createOscillator();
+      var vibGain = ctx.createGain();
+      vib.frequency.value = 5.8;
+      vibGain.gain.value = freq * 0.006;
+      vib.connect(vibGain);
+      vibGain.connect(bow.frequency);
+
+      var held = Math.max(0.14, durSec * 0.94);
+      out.gain.setValueAtTime(0, time);
+      out.gain.linearRampToValueAtTime(0.24, time + 0.07);   // the bow biting
+      out.gain.setValueAtTime(0.24, time + held);
+      out.gain.exponentialRampToValueAtTime(0.0008, time + held + 0.12);
+
+      bow.connect(body2);
+      body2.connect(out);
+      bow.start(time);
+      vib.start(time);
+      bow.stop(time + held + 0.16);
+      vib.stop(time + held + 0.16);
+      track([bow, vib, out]);
     } else {
       // Piano-ish: triangle body + soft octave, exponential decay.
       var body = ctx.createOscillator();
