@@ -86,8 +86,15 @@ staff with a left-hand part. Each one also has its own voice in the playback, so
 viola is bowed rather than blown.
 
 Because two children use this, **each instrument remembers its own level**: switching
-from clarinet to viola brings back the level that instrument was last read at. Progress
-(streak, minutes, accuracy) is still one shared pot per device — see the last section.
+from clarinet to viola brings back the level that instrument was last read at.
+
+### Players
+
+The name in the top corner is whoever is practising. Tap it to switch, to add another
+player, or to rename or remove one. Each player keeps their own progress *and* their
+own settings — instrument, level, tempo, everything — so handing the tablet to a
+brother means one tap, not a reset. Removing a player asks first, and the last
+remaining player cannot be removed.
 
 #### Listening while he plays
 
@@ -226,19 +233,21 @@ Exercises are built rhythm-first: each bar is filled with beat-aligned groups
 out, then a melody is walked over that rhythm — mostly steps, occasional leaps,
 bouncing off the ends of the range, always landing on the tonic.
 
-Progress lives under the `sightReading.v1` key in localStorage. It never leaves the
+Progress lives under the `sightReading.v2` key in localStorage. It never leaves the
 device, and **Clear all progress** on the Progress screen wipes it.
 
-**One pot per device.** There is a single set of progress figures, so two children
-practising on the same tablet share one streak, one minute count and one accuracy
-table. The level is remembered per instrument, which keeps the exercises right for
-each of them, but the statistics are pooled. Separate profiles are the fix, and are
-listed below as a next step.
+**One set per player.** Each player gets their own everything: streak, practice
+minutes, accuracy, the notes they keep missing — and their own settings, so one
+child's viola at level 3 does not disturb the other's clarinet at level 4.
+**Clear … progress** wipes only the player who is currently practising; the others
+are untouched.
+
+Any practice recorded before players existed is kept and becomes **Player 1** the
+first time the app opens — rename them and carry on. The old single-player data is
+left in place under its original key as a backup, so nothing is thrown away.
 
 ## Possible next steps
 
-- **Separate profiles per player**, so two children on one tablet each keep their own
-  streak, practice minutes and accuracy instead of sharing a single pot.
 - A clarinet fingering chart in the drill, so a wrong answer shows the fingering.
 - Counting listening results into **Progress**, so "notes to work on" draws on what
   he actually played and not only on the naming drill.

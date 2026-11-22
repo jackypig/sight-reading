@@ -36,6 +36,10 @@
     levelByInstrument: { clarinet: 2, viola: 2, piano: 2 }
   };
 
+  // A pristine copy, so switching player starts from defaults rather than
+  // inheriting whatever the previous player had on screen.
+  var DEFAULT_SETTINGS = JSON.parse(JSON.stringify(settings));
+
   // Which famous tune is on screen, and whether he has been told yet.
   var mystery = { tune: null, revealed: false, lastId: null };
 
@@ -139,6 +143,153 @@
 
   function persist() {
     store.saveSettings(settings);
+  }
+
+  /* ============================ players ============================ */
+
+  function syncPlayerName() {
+    $('playerName').textContent = store.activeProfile().name;
+  }
+
+  function playerSummary(p) {
+    var bits = [];
+    if (p.streak) bits.push(p.streak + (p.streak === 1 ? ' day streak' : ' days in a row'));
+    if (p.seconds >= 60) bits.push(fmtTime(p.seconds) + ' practised');
+    if (p.drillQ) bits.push(p.drillQ + (p.drillQ === 1 ? ' note named' : ' notes named'));
+    return bits.length ? bits.join(' · ') : 'nothing recorded yet';
+  }
+
+  function renderPlayers() {
+    var list = $('playerList');
+    list.innerHTML = '';
+    store.profiles().forEach(function (p) {
+      var row = document.createElement('div');
+      row.className = 'player-row' + (p.active ? ' is-on' : '');
+      row.dataset.id = p.id;
+
+      var pick = document.createElement('button');
+      pick.className = 'player-pick';
+      pick.dataset.act = 'pick';
+      pick.innerHTML = '<strong></strong><small></small>';
+      pick.querySelector('strong').textContent = p.name + (p.active ? ' — playing now' : '');
+      pick.querySelector('small').textContent = playerSummary(p);
+      row.appendChild(pick);
+
+      ['rename', 'remove'].forEach(function (act) {
+        var b = document.createElement('button');
+        b.className = 'player-icon';
+        b.dataset.act = act;
+        b.title = act === 'rename' ? 'Rename ' + p.name : 'Remove ' + p.name;
+        b.textContent = act === 'rename' ? '✎' : '✕';
+        if (act === 'remove' && !store.canRemove()) b.disabled = true;
+        row.appendChild(b);
+      });
+
+      list.appendChild(row);
+    });
+    syncPlayerName();
+  }
+
+  function openPlayers() {
+    renderPlayers();
+    $('newPlayerName').value = '';
+    $('playerBackdrop').hidden = false;
+    $('playerSheet').hidden = false;
+    markActive();
+  }
+
+  function closePlayers() {
+    $('playerBackdrop').hidden = true;
+    $('playerSheet').hidden = true;
+  }
+
+  // Switching player swaps in their settings as well as their history.
+  function loadProfileSettings() {
+    Object.keys(DEFAULT_SETTINGS).forEach(function (k) {
+      settings[k] = JSON.parse(JSON.stringify(DEFAULT_SETTINGS[k]));
+    });
+    applySavedSettings();
+  }
+
+  function switchPlayer(id) {
+    if (!store.switchTo(id)) return;
+    stopTransport();
+    loadProfileSettings();
+    newExercise();
+    renderProgress();
+    syncPlayerName();
+    closePlayers();
+  }
+
+  // Rename and remove both swap the row into an inline form: a tablet should
+  // never have to deal with a browser prompt box.
+  function startRename(row, id, currentName) {
+    row.innerHTML = '';
+    row.classList.add('editing');
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.maxLength = 20;
+    input.value = currentName;
+    var save = document.createElement('button');
+    save.className = 'btn';
+    save.textContent = 'Save';
+    var cancel = document.createElement('button');
+    cancel.className = 'btn';
+    cancel.textContent = 'Cancel';
+    row.appendChild(input);
+    row.appendChild(save);
+    row.appendChild(cancel);
+    input.focus();
+    input.select();
+
+    save.addEventListener('click', function () {
+      store.renameProfile(id, input.value);
+      renderPlayers();
+      renderProgress();
+    });
+    cancel.addEventListener('click', renderPlayers);
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') save.click();
+      if (e.key === 'Escape') renderPlayers();
+    });
+  }
+
+  function startRemove(row, id, name) {
+    row.innerHTML = '';
+    row.classList.add('editing');
+    var msg = document.createElement('strong');
+    msg.textContent = 'Delete ' + name + ' and their progress?';
+    var yes = document.createElement('button');
+    yes.className = 'btn warn';
+    yes.textContent = 'Delete';
+    var no = document.createElement('button');
+    no.className = 'btn';
+    no.textContent = 'Keep';
+    row.appendChild(msg);
+    row.appendChild(yes);
+    row.appendChild(no);
+
+    yes.addEventListener('click', function () {
+      var wasActive = store.activeProfile().id === id;
+      store.removeProfile(id);
+      if (wasActive) {
+        loadProfileSettings();
+        newExercise();
+      }
+      renderPlayers();
+      renderProgress();
+    });
+    no.addEventListener('click', renderPlayers);
+  }
+
+  function addPlayer() {
+    var input = $('newPlayerName');
+    var name = input.value.trim();
+    if (!name) { input.focus(); return; }
+    var id = store.addProfile(name);
+    input.value = '';
+    switchPlayer(id);        // a new player starts practising straight away
+    openPlayers();
   }
 
   function applySavedSettings() {
@@ -891,15 +1042,21 @@
   /* ============================ progress ============================ */
 
   function renderProgress() {
+    var who = store.activeProfile().name;
+    $('progressWho').textContent = 'Showing ' + who +
+      '’s practice — tap the name in the top corner to switch player.';
+    $('btnReset').textContent = 'Clear ' + who + '’s progress';
     var t = store.totals();
     var today = store.todayStats();
     var acc = t.drillQ ? Math.round((t.drillCorrect / t.drillQ) * 100) : 0;
     var tiles = [
       ['Day streak', store.dayStreak(), store.dayStreak() === 1 ? 'day in a row' : 'days in a row'],
-      ['Today', fmtTime(today.seconds), today.exercises + ' read · ' + today.drillQ + ' notes named'],
+      ['Today', fmtTime(today.seconds), today.exercises + ' read · ' + today.drillQ +
+        (today.drillQ === 1 ? ' note named' : ' notes named')],
       ['All time', fmtTime(t.seconds), t.exercises + ' exercises · ' + t.daysActive +
         (t.daysActive === 1 ? ' day' : ' days')],
-      ['Note naming', acc + '%', t.drillQ + ' answers · best streak ' + store.data.drill.best.streak]
+      ['Note naming', acc + '%', t.drillQ + (t.drillQ === 1 ? ' answer' : ' answers') +
+        ' · best streak ' + store.data.drill.best.streak]
     ];
     $('progressTiles').innerHTML = tiles.map(function (row) {
       return '<div class="tile"><small>' + row[0] + '</small><strong>' + row[1] + '</strong><small>' + row[2] + '</small></div>';
@@ -1070,14 +1227,48 @@
     });
 
     $('btnReset').addEventListener('click', function () {
-      if (global.confirm('Clear all saved practice history? This cannot be undone.')) {
-        store.reset();
-        renderProgress();
-      }
+      $('resetAsk').textContent = 'Clear ' + store.activeProfile().name + "'s progress? This cannot be undone.";
+      $('btnReset').hidden = true;
+      $('resetConfirm').hidden = false;
+      markActive();
+    });
+    $('btnResetNo').addEventListener('click', function () {
+      $('resetConfirm').hidden = true;
+      $('btnReset').hidden = false;
+    });
+    $('btnResetYes').addEventListener('click', function () {
+      store.reset();
+      $('resetConfirm').hidden = true;
+      $('btnReset').hidden = false;
+      renderProgress();
+    });
+
+    $('btnPlayer').addEventListener('click', openPlayers);
+    $('btnClosePlayers').addEventListener('click', closePlayers);
+    $('playerBackdrop').addEventListener('click', closePlayers);
+    $('btnAddPlayer').addEventListener('click', addPlayer);
+    $('newPlayerName').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); addPlayer(); }
+    });
+    $('playerList').addEventListener('click', function (e) {
+      var btn = e.target.closest('button');
+      if (!btn) return;
+      var row = btn.closest('.player-row');
+      if (!row) return;
+      var id = row.dataset.id;
+      var who = store.profiles().filter(function (p) { return p.id === id; })[0];
+      if (!who) return;
+      if (btn.dataset.act === 'pick') switchPlayer(id);
+      else if (btn.dataset.act === 'rename') startRename(row, id, who.name);
+      else if (btn.dataset.act === 'remove') startRemove(row, id, who.name);
     });
 
     document.addEventListener('keydown', function (e) {
       if (e.target.matches('input, select, textarea')) return;
+      if (!$('playerSheet').hidden) {
+        if (e.key === 'Escape') closePlayers();
+        return;                                   // no shortcuts behind the sheet
+      }
       var k = e.key.toLowerCase();
       var inDrill = !$('view-drill').hidden;
 
@@ -1144,6 +1335,7 @@
     buildNoteRow();
     buildPiano();
     applySavedSettings();
+    syncPlayerName();
     wire();
     newExercise();
     renderProgress();

@@ -18,6 +18,11 @@
       <button class="tab" data-view="drill" role="tab">Name It</button>
       <button class="tab" data-view="progress" role="tab">Progress</button>
     </nav>
+    <button class="player-btn" id="btnPlayer" aria-haspopup="dialog">
+      <span aria-hidden="true">&#9679;</span>
+      <span id="playerName">Player 1</span>
+      <span class="caret" aria-hidden="true">&#9662;</span>
+    </button>
   </header>
 
   <section class="setup card">
@@ -219,6 +224,7 @@
 
     <!-- ============ PROGRESS ============ -->
     <section class="view" id="view-progress" hidden>
+      <p class="hint who" id="progressWho"></p>
       <div class="tiles" id="progressTiles"></div>
       <div class="card">
         <h2>Last 7 days</h2>
@@ -233,7 +239,12 @@
         <div class="bars" id="keyBars"></div>
       </div>
       <div class="card danger-zone">
-        <button class="btn warn" id="btnReset">Clear all progress</button>
+        <button class="btn warn" id="btnReset">Clear this player's progress</button>
+        <span class="confirm-inline" id="resetConfirm" hidden>
+          <strong id="resetAsk">Really clear it?</strong>
+          <button class="btn warn" id="btnResetYes">Yes, clear</button>
+          <button class="btn" id="btnResetNo">Cancel</button>
+        </span>
         <span class="hint" id="storeNote"></span>
       </div>
     </section>
@@ -243,6 +254,18 @@
     <span class="hint">Shortcuts: <kbd>Space</kbd> play along · <kbd>H</kbd> hear it · <kbd>N</kbd> new · <kbd>L</kbd> listen · <kbd>R</kbd> reveal the tune · <kbd>1</kbd>–<kbd>5</kbd> level · in Name It, letter keys answer.</span>
   </footer>
 </div>
+
+<div class="sheet-backdrop" id="playerBackdrop" hidden></div>
+<section class="sheet" id="playerSheet" hidden role="dialog" aria-label="Choose who is practising">
+  <h2>Who's practising?</h2>
+  <p class="hint">Each player keeps their own streak, practice time and accuracy.</p>
+  <div class="player-list" id="playerList"></div>
+  <div class="player-add">
+    <input type="text" id="newPlayerName" maxlength="20" placeholder="Add another player" autocomplete="off">
+    <button class="btn" id="btnAddPlayer">Add</button>
+  </div>
+  <button class="btn primary" id="btnClosePlayers">Done</button>
+</section>
 
 <div id="boot" class="boot" hidden></div>
 
