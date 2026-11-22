@@ -94,8 +94,47 @@
     {
       id: 'beethoven-5', title: 'Symphony No. 5', by: 'Beethoven',
       blurb: 'da-da-da-DUM — the most famous four notes in music',
-      key: 'Eb', time: '2/4', level: 4,
+      key: 'Eb', mode: 'minor', time: '2/4', level: 4,
       music: 're g4e g4e g4e | eb4h | re f4e f4e f4e | d4h'
+    },
+    {
+      id: 'zarathustra', title: 'Also sprach Zarathustra', by: 'Richard Strauss',
+      blurb: 'the sunrise fanfare — the 2001: A Space Odyssey one',
+      key: 'C', time: '4/4', level: 2,
+      music: 'c4h g4h | c5w | e5w'
+    },
+    {
+      id: 'mountain-king', title: 'In the Hall of the Mountain King', by: 'Grieg',
+      blurb: 'the troll march from Peer Gynt — start slow, it speeds up in real life',
+      key: 'C', mode: 'minor', time: '4/4', level: 4,
+      music: 'a3e b3e c4e d4e e4e c4e e4q | d#4e b3e d#4q d4e bb3e d4q | ' +
+             'a3e b3e c4e d4e e4e c4e e4e a4e | g4e e4e c4e e4e g4h'
+    },
+    {
+      id: 'mars', title: 'Mars, the Bringer of War', by: 'Gustav Holst',
+      blurb: 'the five-beat war march from The Planets — all rhythm, one note',
+      key: 'C', time: '5/4', level: 4,
+      music: 'g3q. g3e g3q g3q g3q | g3q. g3e g3q g3q g3q | ' +
+             'g3q. g3e g3q g3q g3q | g3q. g3e g3q g3q g3q'
+    },
+    {
+      id: 'fur-elise', title: 'Für Elise', by: 'Beethoven',
+      blurb: 'the most-played piano opening there is',
+      key: 'C', mode: 'minor', time: '3/4', level: 4,
+      music: 'e5e d#5e | e5e d#5e e5e b4e d5e c5e | a4h.'
+    },
+    {
+      id: 'new-world', title: 'New World Symphony, Largo', by: 'Dvořák',
+      blurb: 'the big homesick tune — most people call it Goin’ Home',
+      key: 'C', time: '4/4', level: 5,
+      music: 'e4e. g4s g4q e4e. d4s c4q | d4e. e4s g4e. e4s d4h | ' +
+             'e4e. g4s g4q e4e. d4s c4q | d4e e4e d4e. c4s c4h'
+    },
+    {
+      id: 'moonlight', title: 'Moonlight Sonata', by: 'Beethoven',
+      blurb: 'the melody on top — the rippling triplets underneath are the famous part',
+      key: 'C', mode: 'minor', time: '2/2', level: 5,
+      music: 'e4e. e4s | e4h. e4e. e4s | e4h f4h | e4h d4q g4q | c4q rq rh'
     }
   ];
 
@@ -203,11 +242,19 @@
 
   var KEY_BY_PC = { 0: 'C', 2: 'D', 3: 'Eb', 5: 'F', 7: 'G', 9: 'A', 10: 'Bb' };
 
+  // Move a key signature by an interval in semitones. Returns null when the
+  // result is a key this app does not carry, which is how the tune writer
+  // decides which keys it can offer a transposing instrument.
+  function shiftKey(keyName, semitones) {
+    var k = T.KEYS[keyName];
+    if (!k) return null;
+    var tonicAcc = k.map[k.tonic];
+    var pc = ((T.midiOf(k.tonic, tonicAcc, 4) + semitones) % 12 + 12) % 12;
+    return KEY_BY_PC[pc] || null;
+  }
+
   function transposeKeyUpMajorSecond(keyName) {
-    var tonicLetter = T.KEYS[keyName].tonic;
-    var tonicAcc = T.KEYS[keyName].map[tonicLetter];
-    var pc = (T.midiOf(tonicLetter, tonicAcc, 4) + 2) % 12;
-    return KEY_BY_PC[pc] || keyName;
+    return shiftKey(keyName, 2) || keyName;
   }
 
   /** Turn a tune into the same shape generator.generate() produces. */
@@ -255,7 +302,9 @@
       clef: clef,
       key: keyName,
       keySpec: T.KEYS[keyName] ? T.KEYS[keyName].spec : 'C',
-      keyLabel: T.KEYS[keyName] ? T.KEYS[keyName].label : keyName,
+      keyLabel: tune.mode === 'minor'
+        ? T.minorLabel(keyName)
+        : (T.KEYS[keyName] ? T.KEYS[keyName].label : keyName),
       timeSig: timeSig,
       beatsPerBar: beatsPerBar,
       bars: measures.length,
@@ -302,6 +351,8 @@
   SR.tunes = {
     all: TUNES,
     pick: pick,
+    transposeNote: transposeNote,
+    shiftKey: shiftKey,
     buildExercise: buildExercise,
     countFor: countFor,
     validate: validate,

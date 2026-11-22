@@ -59,6 +59,7 @@
         <div class="segmented" id="segSource">
           <button data-val="random" class="is-on">Made up</button>
           <button data-val="tune">Famous tune</button>
+          <button data-val="custom">My tunes</button>
         </div>
         <p class="hint level-note" id="sourceNote"></p>
       </div>
@@ -120,6 +121,7 @@
           <span class="pill ghost" id="pillCount"></span>
           <span class="pill tune" id="pillTune" hidden></span>
           <button class="chip reveal" id="btnReveal" hidden>What is this tune?</button>
+          <button class="chip write" id="btnWriteTune" hidden>&#9998; Write a tune</button>
         </div>
         <div class="notation-wrap">
           <div id="notation" class="notation"></div>
@@ -254,6 +256,69 @@
     <span class="hint">Shortcuts: <kbd>Space</kbd> play along · <kbd>H</kbd> hear it · <kbd>N</kbd> new · <kbd>L</kbd> listen · <kbd>R</kbd> reveal the tune · <kbd>1</kbd>–<kbd>5</kbd> level · in Name It, letter keys answer.</span>
   </footer>
 </div>
+
+<div class="sheet-backdrop" id="tuneBackdrop" hidden></div>
+<section class="sheet wide" id="tuneSheet" hidden role="dialog" aria-label="Write your own tune">
+  <h2>Write your own tune</h2>
+  <p class="hint">Tap the notes you want. Your tunes stay on this device — they are never
+    uploaded or shared.</p>
+
+  <div class="fields">
+    <div class="field">
+      <label for="ctTitle">Call it</label>
+      <input type="text" id="ctTitle" maxlength="40" placeholder="My tune" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="ctKey">Key</label>
+      <select id="ctKey"></select>
+    </div>
+    <div class="field">
+      <label for="ctTime">Time</label>
+      <select id="ctTime">
+        <option value="4/4">4/4</option>
+        <option value="3/4">3/4</option>
+        <option value="2/4">2/4</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="notation" id="ctPreview"></div>
+  <p class="hint" id="ctStatus"></p>
+
+  <div class="ct-pad">
+    <div class="note-row" id="ctNotes"></div>
+    <div class="ct-row">
+      <div class="segmented" id="ctAcc">
+        <button data-val="b">&#9837;</button>
+        <button data-val="" class="is-on">&#9838;</button>
+        <button data-val="#">&#9839;</button>
+      </div>
+      <div class="segmented" id="ctDur">
+        <button data-val="w">whole</button>
+        <button data-val="h">half</button>
+        <button data-val="q" class="is-on">quarter</button>
+        <button data-val="e">eighth</button>
+        <button data-val="s">16th</button>
+      </div>
+    </div>
+    <div class="ct-row">
+      <button class="chip" id="ctDot">dotted: off</button>
+      <button class="chip" id="ctRest">add a rest</button>
+      <button class="chip" id="ctOctDown">last note lower</button>
+      <button class="chip" id="ctOctUp">last note higher</button>
+      <button class="chip" id="ctUndo">undo</button>
+      <button class="chip" id="ctClear">clear</button>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn primary" id="ctSave">Save tune</button>
+    <button class="btn" id="ctCancel">Close</button>
+  </div>
+
+  <h2 class="ct-list-head">Tunes you have written</h2>
+  <div class="player-list" id="ctList"></div>
+</section>
 
 <div class="sheet-backdrop" id="playerBackdrop" hidden></div>
 <section class="sheet" id="playerSheet" hidden role="dialog" aria-label="Choose who is practising">

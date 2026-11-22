@@ -142,16 +142,40 @@ by octaves to sit on the staff. A tune only appears once its level is reached:
 | Level | New tunes at this level |
 |---|---|
 | 1 | Ode to Joy · Twinkle, Twinkle · Mary Had a Little Lamb · Jingle Bells |
-| 2 | Old MacDonald · Yankee Doodle · Ode to Joy (full theme) |
+| 2 | Old MacDonald · Yankee Doodle · Ode to Joy (full theme) · Also sprach Zarathustra |
 | 3 | Frère Jacques · Three Blind Mice |
-| 4 | Happy Birthday · Beethoven's Fifth |
+| 4 | Happy Birthday · Beethoven's Fifth · In the Hall of the Mountain King · Mars, the Bringer of War · Für Elise |
+| 5 | New World Symphony Largo · Moonlight Sonata |
 
-**Why these and not Star Wars.** Everything in the library is public domain —
-traditional songs and classical themes old enough to be out of copyright. Current
-pop and film music is still in copyright, so its notation cannot be reproduced
-here. Adding more is one line of data in `js/tunes.js`; the format is documented at
-the top of that file, and every bar is checked for the right number of beats when
-the page loads, so a typo shows up immediately.
+Minor-key pieces are labelled the way a musician would name them — Beethoven's
+Fifth reads **C minor**, not "E♭ major" — and a tune in a minor key keeps its
+accidentals, so the Mountain King still has its E♯ and C♮ where Grieg put them.
+
+### Writing your own tunes
+
+**My tunes** is the third setting on the Music switch. Tap **✎ Write a tune** and
+you get a staff that fills in as you tap note names: pick sharp or flat, pick a
+length, tap the letter. Each note lands in the octave nearest the one before it, so
+a melody goes in without thinking about octaves, and *last note higher / lower*
+fixes it when that guesses wrong. Durations that would overflow the bar grey out, so
+a tune can never end up with a half-full bar in the middle.
+
+Tunes are saved **per player** and live only in that browser's storage. Writing one
+on the clarinet stores it at concert pitch, so the same tune reads correctly on the
+viola or piano too — and reads back on the clarinet exactly as it was typed.
+
+**Why the shipped library is public domain only.** Everything in `js/tunes.js` is
+traditional or classical and out of copyright. Modern pop and film music — Bon Jovi,
+Michael Jackson, Jurassic Park — is still in copyright, and this repository is
+public, so transcribing those into it would be publishing someone else's music, not
+private practice. That is what **My tunes** is for: anything can be typed in there,
+and it never leaves the device. Custom tunes live in `localStorage`, not in a file,
+so there is nothing in the repository to commit or ignore; if a file-based
+import/export is ever added, those files must be gitignored.
+
+Adding to the shipped library is one line of data in `js/tunes.js`; the format is
+documented at the top of that file, and every bar is checked for the right number of
+beats when the page loads, so a typo shows up immediately.
 
 ### Name It
 

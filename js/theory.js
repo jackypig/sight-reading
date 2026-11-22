@@ -23,6 +23,15 @@
     Eb: { spec: 'Eb', label: 'E♭ major', tonic: 'e',  map: { c: '', d: '', e: 'b', f: '', g: '', a: 'b', b: 'b' } }
   };
 
+  // A minor-key piece carries its relative major's key signature, so a tune can
+  // say mode:'minor' and be labelled the way a musician would name it.
+  var RELATIVE_MINOR = { C: 'A', G: 'E', D: 'B', A: 'F♯', F: 'D', Bb: 'G', Eb: 'C' };
+
+  function minorLabel(keyName) {
+    var tonic = RELATIVE_MINOR[keyName];
+    return tonic ? tonic + ' minor' : (KEYS[keyName] ? KEYS[keyName].label : keyName);
+  }
+
   // Display name for a note, e.g. {letter:'f', acc:'#'} -> "F♯"
   function prettyName(letter, acc) {
     return letter.toUpperCase() + (acc === '#' ? '♯' : acc === 'b' ? '♭' : '');
@@ -241,6 +250,8 @@
     describeLevel: describeLevel,
     DUR: DUR,
     RHYTHM_LEVELS: RHYTHM_LEVELS,
+    RELATIVE_MINOR: RELATIVE_MINOR,
+    minorLabel: minorLabel,
     makeNote: makeNote,
     parseNote: parseNote,
     prettyName: prettyName,

@@ -732,3 +732,57 @@ select:disabled { opacity: .45; cursor: default; }
   .player-btn { padding: 0 12px; }
   .player-row.editing .btn { flex: 1 1 auto; }
 }
+
+/* ---------- writing your own tune ---------- */
+
+.chip.write {
+  min-height: 38px;
+  padding: 0 14px;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.sheet.wide { width: min(760px, calc(100vw - 24px)); }
+
+.sheet .fields { margin-bottom: 12px; }
+.sheet .field > label { margin-bottom: 4px; }
+
+.sheet input[type="text"] {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+#ctPreview { min-height: 120px; margin-bottom: 6px; }
+
+.ct-pad { margin: 10px 0 14px; }
+
+.ct-pad .note-row { margin-bottom: 10px; }
+.ct-pad .note-btn { min-height: 60px; font-size: 1.3rem; }
+
+.ct-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.ct-row .segmented { flex: 1 1 220px; }
+.ct-row .segmented button { min-height: 44px; font-size: .95rem; }
+.ct-row .chip { flex: 1 1 auto; }
+.ct-row .chip.is-on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+
+.ct-list-head { margin-top: 18px; font-size: 1rem; }
+
+@media (max-width: 560px) {
+  .ct-pad .note-btn { min-height: 52px; font-size: 1.1rem; }
+  .ct-row .segmented { flex-basis: 100%; }
+}

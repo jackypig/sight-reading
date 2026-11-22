@@ -130,15 +130,21 @@
 
   function syncSourceUI() {
     var tuneMode = settings.source === 'tune';
+    var customMode = settings.source === 'custom';
     var count = SR.tunes ? SR.tunes.countFor(settings.level) : 0;
+    var mine = store.customTunes().length;
     $('sourceNote').textContent = tuneMode
       ? count + ' tunes at this level — the title stays hidden until you ask.'
-      : 'Fresh random music every time, built to this level.';
+      : customMode
+        ? (mine ? mine + (mine === 1 ? ' tune' : ' tunes') + ' you wrote — they stay on this device.'
+                : 'Nothing written yet — tap “Write a tune”.')
+        : 'Fresh random music every time, built to this level.';
     // A tune brings its own key, time signature and length.
-    ['selKey', 'selTime'].forEach(function (id) { $(id).disabled = tuneMode; });
+    ['selKey', 'selTime'].forEach(function (id) { $(id).disabled = tuneMode || customMode; });
     Array.prototype.forEach.call($('segBars').querySelectorAll('button'), function (b) {
-      b.disabled = tuneMode;
+      b.disabled = tuneMode || customMode;
     });
+    $('btnWriteTune').hidden = !customMode;
   }
 
   function persist() {
@@ -282,6 +288,305 @@
     no.addEventListener('click', renderPlayers);
   }
 
+  /* ============================ writing your own tune ============================ */
+
+  var CT_BEATS = { w: 4, h: 2, q: 1, e: 0.5, s: 0.25 };
+  var CT_CODES = { w: 'w', h: 'h', q: 'q', e: '8', s: '16' };
+
+  var writer = { items: [], acc: '', dur: 'q', dotted: false };
+
+  function ctClefNow() {
+    var inst = T.INSTRUMENTS[settings.instrument];
+    if (inst.clefs.indexOf('alto') !== -1) return 'alto';
+    return (settings.instrument === 'piano' && settings.clef === 'bass') ? 'bass' : 'treble';
+  }
+
+  function ctTimeSig() {
+    var parts = ($('ctTime').value || '4/4').split('/');
+    var timeSig = { num: parseInt(parts[0], 10), den: parseInt(parts[1], 10) };
+    return { timeSig: timeSig, beatsPerBar: timeSig.num * (4 / timeSig.den) };
+  }
+
+  // Pack what has been tapped so far into bars, exactly like a real exercise.
+  function ctMeasures(beatsPerBar) {
+    var measures = [[]];
+    var cursor = 0;
+    writer.items.forEach(function (it) {
+      var bar = measures[measures.length - 1];
+      var used = bar.reduce(function (s, x) { return s + x.beats; }, 0);
+      if (used + it.beats > beatsPerBar + 0.001) {
+        measures.push([]);
+        bar = measures[measures.length - 1];
+      }
+      bar.push({
+        note: it.rest ? null : T.makeNote(it.letter, it.acc, it.octave),
+        rest: !!it.rest,
+        durCode: CT_CODES[it.durKey],
+        dots: it.dots,
+        beats: it.beats,
+        startBeat: cursor,
+        bar: measures.length - 1
+      });
+      cursor += it.beats;
+    });
+    return { measures: measures, totalBeats: cursor };
+  }
+
+  function ctExercise() {
+    var t = ctTimeSig();
+    var packed = ctMeasures(t.beatsPerBar);
+    var keyName = $('ctKey').value || 'C';
+    var clef = ctClefNow();
+    return {
+      instrument: settings.instrument,
+      level: settings.level,
+      clef: clef,
+      key: keyName,
+      keySpec: T.KEYS[keyName].spec,
+      keyLabel: T.KEYS[keyName].label,
+      timeSig: t.timeSig,
+      beatsPerBar: t.beatsPerBar,
+      bars: packed.measures.length,
+      totalBeats: packed.totalBeats,
+      voices: [{ clef: clef, measures: packed.measures }],
+      transpose: T.INSTRUMENTS[settings.instrument].transpose,
+      timbre: T.INSTRUMENTS[settings.instrument].timbre
+    };
+  }
+
+  function ctRoomLeft() {
+    var t = ctTimeSig();
+    var packed = ctMeasures(t.beatsPerBar);
+    var lastBar = packed.measures[packed.measures.length - 1];
+    var used = lastBar.reduce(function (s, x) { return s + x.beats; }, 0);
+    var left = t.beatsPerBar - used;
+    var full = left <= 0.001;
+    // A full bar means the next note opens a fresh one, so the whole bar is free.
+    return {
+      left: full ? t.beatsPerBar : left,
+      used: full ? 0 : used,
+      beatsPerBar: t.beatsPerBar,
+      bars: packed.measures.length + (full ? 1 : 0)
+    };
+  }
+
+  function ctCurrentBeats() {
+    return CT_BEATS[writer.dur] * (writer.dotted ? 1.5 : 1);
+  }
+
+  function ctStatus(msg) {
+    var room = ctRoomLeft();
+    $('ctStatus').textContent = msg || (writer.items.length
+      ? 'Bar ' + room.bars + ' — ' + room.used + ' of ' + room.beatsPerBar + ' beats filled.'
+      : 'Tap a note to start. It goes in at the pitch nearest the one before it.');
+  }
+
+  function ctRender(msg) {
+    var box = $('ctPreview');
+    if (!writer.items.length) {
+      box.innerHTML = '';
+      ctStatus(msg);
+      ctSyncButtons();
+      return;
+    }
+    try {
+      notation.renderExercise(box, ctExercise(), {});
+    } catch (err) {
+      box.innerHTML = '';
+    }
+    ctStatus(msg);
+    ctSyncButtons();
+  }
+
+  // Grey out any duration that will not fit in the bar being filled.
+  function ctSyncButtons() {
+    var room = ctRoomLeft();
+    Array.prototype.forEach.call($('ctDur').querySelectorAll('button'), function (b) {
+      var beats = CT_BEATS[b.dataset.val] * (writer.dotted ? 1.5 : 1);
+      b.disabled = beats > room.left + 0.001;
+    });
+    $('ctDot').textContent = 'dotted: ' + (writer.dotted ? 'on' : 'off');
+    $('ctDot').classList.toggle('is-on', writer.dotted);
+    $('ctSave').disabled = !writer.items.length;
+  }
+
+  function ctLastNote() {
+    for (var i = writer.items.length - 1; i >= 0; i--) {
+      if (!writer.items[i].rest) return writer.items[i];
+    }
+    return null;
+  }
+
+  // Put the new note in the octave closest to the previous one, so a melody can
+  // be tapped in without thinking about octaves at all.
+  function ctOctaveFor(letter, acc) {
+    var last = ctLastNote();
+    var anchor;
+    if (last) {
+      anchor = T.makeNote(last.letter, last.acc, last.octave).midi;
+    } else {
+      var r = settings.instrument === 'piano' && settings.clef === 'bass'
+        ? T.bassRangeFor('piano', settings.level)
+        : T.rangeFor(settings.instrument, settings.level, ctClefNow());
+      anchor = Math.round((r.low + r.high) / 2);
+    }
+    var best = 4, bestDist = Infinity;
+    for (var o = 1; o <= 7; o++) {
+      var d = Math.abs(T.midiOf(letter, acc, o) - anchor);
+      if (d < bestDist) { bestDist = d; best = o; }
+    }
+    return best;
+  }
+
+  function ctAdd(item) {
+    var beats = ctCurrentBeats();
+    var room = ctRoomLeft();
+    if (beats > room.left + 0.001) {
+      ctRender(room.left + (room.left === 1 ? ' beat' : ' beats') +
+        ' left in this bar — pick something shorter.');
+      return;
+    }
+    item.durKey = writer.dur;
+    item.dots = writer.dotted ? 1 : 0;
+    item.beats = beats;
+    writer.items.push(item);
+    markActive();
+    ctRender();
+  }
+
+  function ctAddNote(letter) {
+    ctAdd({ letter: letter, acc: writer.acc, octave: ctOctaveFor(letter, writer.acc), rest: false });
+  }
+
+  function ctShiftLast(delta) {
+    var last = ctLastNote();
+    if (!last) return;
+    var next = last.octave + delta;
+    if (next < 1 || next > 7) return;
+    last.octave = next;
+    ctRender();
+  }
+
+  function ctMusicString() {
+    var t = ctTimeSig();
+    var packed = ctMeasures(t.beatsPerBar);
+    var shift = T.INSTRUMENTS[settings.instrument].writtenShift;
+    return packed.measures.map(function (bar) {
+      return bar.map(function (item) {
+        var dur = item.durCode === '8' ? 'e' : item.durCode === '16' ? 's' : item.durCode;
+        var dot = item.dots ? '.' : '';
+        if (item.rest) return 'r' + dur + dot;
+        // Stored at concert pitch, so the tune can be read on any instrument.
+        var note = item.note;
+        if (shift) note = SR.tunes.transposeNote(note, -shift.letters, -shift.semitones);
+        return note.letter + note.acc + note.octave + dur + dot;
+      }).join(' ');
+    }).join(' | ');
+  }
+
+  function ctFillKeys() {
+    var sel = $('ctKey');
+    var shift = T.INSTRUMENTS[settings.instrument].writtenShift;
+    var previous = sel.value;
+    sel.innerHTML = '';
+    Object.keys(T.KEYS).forEach(function (k) {
+      // On a transposing instrument, only offer keys whose concert equivalent
+      // this app can actually write down.
+      if (shift && !SR.tunes.shiftKey(k, -shift.semitones)) return;
+      var o = document.createElement('option');
+      o.value = k;
+      o.textContent = T.KEYS[k].label + (shift ? ' (written)' : '');
+      sel.appendChild(o);
+    });
+    sel.value = Array.prototype.some.call(sel.options, function (o) { return o.value === previous; })
+      ? previous : 'C';
+  }
+
+  function ctRenderList() {
+    var list = $('ctList');
+    var tunes = store.customTunes();
+    list.innerHTML = '';
+    if (!tunes.length) {
+      var p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'Nothing yet. Tap some notes above and press Save tune.';
+      list.appendChild(p);
+      return;
+    }
+    tunes.forEach(function (t) {
+      var row = document.createElement('div');
+      row.className = 'player-row';
+      row.dataset.id = t.id;
+      var pick = document.createElement('button');
+      pick.className = 'player-pick';
+      pick.dataset.act = 'play';
+      pick.innerHTML = '<strong></strong><small></small>';
+      pick.querySelector('strong').textContent = t.title;
+      // Show the key as this instrument will read it, not the stored concert key.
+      var shift = T.INSTRUMENTS[settings.instrument].writtenShift;
+      var readKey = shift ? (SR.tunes.shiftKey(t.key, shift.semitones) || t.key) : t.key;
+      var bars = t.music.split('|').length;
+      pick.querySelector('small').textContent = (T.KEYS[readKey] ? T.KEYS[readKey].label : readKey) +
+        ' · ' + t.time + ' · ' + bars + (bars === 1 ? ' bar' : ' bars');
+      var del = document.createElement('button');
+      del.className = 'player-icon';
+      del.dataset.act = 'delete';
+      del.textContent = '✕';
+      del.title = 'Delete ' + t.title;
+      row.appendChild(pick);
+      row.appendChild(del);
+      list.appendChild(row);
+    });
+  }
+
+  function openWriter() {
+    ctFillKeys();
+    writer.items = [];
+    writer.acc = '';
+    writer.dur = 'q';
+    writer.dotted = false;
+    setSegment($('ctAcc'), '');
+    setSegment($('ctDur'), 'q');
+    $('ctTitle').value = '';
+    $('tuneBackdrop').hidden = false;
+    $('tuneSheet').hidden = false;
+    ctRenderList();
+    ctRender();
+    markActive();
+  }
+
+  function closeWriter() {
+    $('tuneBackdrop').hidden = true;
+    $('tuneSheet').hidden = true;
+  }
+
+  function ctSave() {
+    if (!writer.items.length) return;
+    var t = ctTimeSig();
+    var title = $('ctTitle').value.trim() ||
+      ('My tune ' + (store.customTunes().length + 1));
+    var keyName = $('ctKey').value || 'C';
+    var shift = T.INSTRUMENTS[settings.instrument].writtenShift;
+    var storedKey = shift ? (SR.tunes.shiftKey(keyName, -shift.semitones) || keyName) : keyName;
+
+    store.addCustomTune({
+      title: title.slice(0, 40),
+      by: store.activeProfile().name,
+      blurb: 'one of your own',
+      key: storedKey,
+      time: t.timeSig.num + '/' + t.timeSig.den,
+      level: 1,
+      music: ctMusicString()
+    });
+
+    writer.items = [];
+    $('ctTitle').value = '';
+    ctRenderList();
+    ctRender('Saved. It is in your tunes now.');
+    syncSourceUI();
+    if (settings.source === 'custom') newExercise();
+  }
+
   function addPlayer() {
     var input = $('newPlayerName');
     var name = input.value.trim();
@@ -380,7 +685,28 @@
 
   function newExercise() {
     stopTransport();
-    if (settings.source === 'tune' && SR.tunes) {
+    if (settings.source === 'custom') {
+      var mine = store.customTunes();
+      if (!mine.length) {
+        practice.ex = null;
+        practice.layout = [];
+        $('notation').innerHTML = '';
+        mystery.tune = null;
+        mystery.revealed = false;
+        syncMysteryUI();
+        $('tuneNote').hidden = false;
+        $('tuneNote').textContent = 'No tunes of your own yet — tap “Write a tune” and make one.';
+        $('selfCheck').hidden = true;
+        markActive();
+        return;
+      }
+      var fresh = mine.filter(function (t) { return t.id !== mystery.lastId; });
+      var chosen = (fresh.length ? fresh : mine)[Math.floor(Math.random() * (fresh.length ? fresh.length : mine.length))];
+      mystery.tune = chosen;
+      mystery.lastId = chosen.id;
+      mystery.revealed = true;              // his own tune: no point hiding the name
+      practice.ex = SR.tunes.buildExercise(chosen, settings);
+    } else if (settings.source === 'tune' && SR.tunes) {
       mystery.tune = SR.tunes.pick(settings, mystery.lastId);
       mystery.lastId = mystery.tune.id;
       mystery.revealed = false;
@@ -876,6 +1202,22 @@
     });
   }
 
+  function buildCtNotes() {
+    var row = $('ctNotes');
+    row.innerHTML = '';
+    T.LETTERS.forEach(function (letter) {
+      var b = document.createElement('button');
+      b.className = 'note-btn';
+      b.dataset.letter = letter;
+      b.textContent = letter.toUpperCase();
+      row.appendChild(b);
+    });
+    row.addEventListener('click', function (e) {
+      var btn = e.target.closest('.note-btn');
+      if (btn) ctAddNote(btn.dataset.letter);
+    });
+  }
+
   function buildPiano() {
     var piano = $('piano');
     piano.innerHTML = '';
@@ -1243,6 +1585,51 @@
       renderProgress();
     });
 
+    $('btnWriteTune').addEventListener('click', openWriter);
+    $('ctCancel').addEventListener('click', closeWriter);
+    $('tuneBackdrop').addEventListener('click', closeWriter);
+    $('ctSave').addEventListener('click', ctSave);
+    $('ctTime').addEventListener('change', function () { ctRender(); });
+    $('ctKey').addEventListener('change', function () { ctRender(); });
+    onSegment($('ctAcc'), function (v) { writer.acc = v; });
+    onSegment($('ctDur'), function (v) { writer.dur = v; ctSyncButtons(); });
+    $('ctDot').addEventListener('click', function () {
+      writer.dotted = !writer.dotted;
+      ctSyncButtons();
+    });
+    $('ctRest').addEventListener('click', function () { ctAdd({ rest: true }); });
+    $('ctUndo').addEventListener('click', function () { writer.items.pop(); ctRender(); });
+    $('ctClear').addEventListener('click', function () { writer.items = []; ctRender(); });
+    $('ctOctUp').addEventListener('click', function () { ctShiftLast(1); });
+    $('ctOctDown').addEventListener('click', function () { ctShiftLast(-1); });
+    $('ctList').addEventListener('click', function (e) {
+      var btn = e.target.closest('button');
+      if (!btn) return;
+      var row = btn.closest('.player-row');
+      if (!row) return;
+      var id = row.dataset.id;
+      if (btn.dataset.act === 'delete') {
+        store.removeCustomTune(id);
+        ctRenderList();
+        syncSourceUI();
+        if (settings.source === 'custom') newExercise();
+      } else if (btn.dataset.act === 'play') {
+        var tune = store.customTunes().filter(function (t) { return t.id === id; })[0];
+        if (!tune) return;
+        settings.source = 'custom';
+        setSegment($('segSource'), 'custom');
+        syncSourceUI();
+        persist();
+        mystery.tune = tune;
+        mystery.lastId = tune.id;
+        mystery.revealed = true;
+        practice.ex = SR.tunes.buildExercise(tune, settings);
+        renderPractice();
+        updatePills();
+        closeWriter();
+      }
+    });
+
     $('btnPlayer').addEventListener('click', openPlayers);
     $('btnClosePlayers').addEventListener('click', closePlayers);
     $('playerBackdrop').addEventListener('click', closePlayers);
@@ -1268,6 +1655,10 @@
       if (!$('playerSheet').hidden) {
         if (e.key === 'Escape') closePlayers();
         return;                                   // no shortcuts behind the sheet
+      }
+      if (!$('tuneSheet').hidden) {
+        if (e.key === 'Escape') closeWriter();
+        return;
       }
       var k = e.key.toLowerCase();
       var inDrill = !$('view-drill').hidden;
@@ -1333,6 +1724,7 @@
       return;
     }
     buildNoteRow();
+    buildCtNotes();
     buildPiano();
     applySavedSettings();
     syncPlayerName();

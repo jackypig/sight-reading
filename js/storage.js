@@ -22,6 +22,9 @@
       days: {},
       practice: { exercises: 0, byKey: {} },
       drill: { byNote: {}, byKey: {}, byClef: {}, rounds: 0, best: { streak: 0, roundPct: 0, fastestMs: null } },
+      // Tunes this player wrote themselves. They stay on this device and are
+      // never part of the shipped library, which is public domain only.
+      customTunes: [],
       settings: null
     };
   }
@@ -319,6 +322,28 @@
       var s = cur().settings;
       if (!s) return null;
       try { return JSON.parse(JSON.stringify(s)); } catch (e) { return null; }
+    },
+
+    customTunes: function () {
+      var list = cur().customTunes;
+      return Array.isArray(list) ? list : (cur().customTunes = []);
+    },
+    addCustomTune: function (tune) {
+      var list = this.customTunes();
+      var copy = JSON.parse(JSON.stringify(tune));
+      copy.id = 'ct' + Date.now().toString(36) + Math.floor(Math.random() * 1000).toString(36);
+      copy.custom = true;
+      copy.created = Date.now();
+      list.push(copy);
+      saveNow();
+      return copy.id;
+    },
+    removeCustomTune: function (id) {
+      var list = this.customTunes();
+      var before = list.length;
+      cur().customTunes = list.filter(function (t) { return t.id !== id; });
+      saveNow();
+      return cur().customTunes.length < before;
     },
 
     profiles: listProfiles,
